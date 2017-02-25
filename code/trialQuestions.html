@@ -1,0 +1,3006 @@
+<html>
+<head>
+	<meta charset="utf-8" />
+	<title>VAL@GT Perceptive interaction study</title>
+	<script src="js/jquery-1.11.2.min.js"></script>
+	<script src="js/le.min.js"></script>
+    <script>
+    	//LE.init('f7e6ece9-d0af-4227-a741-668224947df9');
+    </script>   
+    <script src="d3/d3.min.js"></script>
+    <script type="text/javascript" src="js/textures.js"></script>
+    <script type="text/javascript" src="js/questionOrderSets.js"></script>
+	<link rel="stylesheet" href="css/d3.slider.css"/>
+	<script type="text/javascript">
+		var logs = [];
+		var coveredQuestions = [];
+		var questionNumber = 0;
+		var firstTime = 1;
+		var submitPressed = 0;
+		var questionCount = 0;
+		var totalQuestionCount = 12;
+		var currentdate = new Date(); 
+		//var sessionUserId="user"+currentdate.getHours()+currentdate.getMinutes()+currentdate.getSeconds()+currentdate.getMilliseconds();
+		function getCookie(cname) {
+		    var name = cname + "=";
+		    var ca = document.cookie.split(';');
+		    for(var i=0; i<ca.length; i++) {
+		        var c = ca[i];
+		        while (c.charAt(0)==' ') c = c.substring(1);
+		        if (c.indexOf(name) == 0) return c.substring(name.length, c.length);
+		    }
+		    return "";
+		}
+		var sessionUserId = getCookie("sessionUserId");
+		//console.log(sessionUserId)
+		var currentQuestionSet=-1;
+		var currentQuestionIndex = 0;
+		var curSize = 8;
+		var answers = {
+			"width_1":0,
+			"height_1":0,
+			"angle_1":0,
+			"distance_1":0,
+			"slider_1":0,
+			"circle_area_1":0,
+			"square_area_1":0,
+			"line_shape_1":[]
+		};
+		var skipSendLogs = 1;
+		var userEndValue;
+		var orderNum = 0;
+	</script>
+	<style type="text/css">
+	.circleareadragger{
+      cursor: ew-resize;
+    }
+    .positionrotatehandler{
+    	cursor: move;	
+    }
+    .rectareadragger{
+    	cursor: nwse-resize;
+    }
+
+    .spaced{
+    	margin-top: 200px;
+    }
+
+	</style>
+</head>
+<body>
+	<div  id="maincontent" align="center">
+		<p id="questionnumbertext"></p>
+		<p id="questiontext"></p>
+		<p id="interaction"></p>
+		<p id="responsetext"></p>
+		<div id="vizcontainer">
+		<div id="viz" align="center"></div>
+		</div>
+		<button id="increaseButton" onclick="increase()">decrease</button>
+		<button id="decreaseButton" onclick="decrease()">increase</button>		
+		<canvas id="mycanvas" height="500" width="500" class="quadratic" style="border:1px solid #000000;"></canvas><br/>
+		<p style="font-size:18px;font-family:sans-serif;" id="instructionstext"><span style="color:gray">NOTE: To ensure best performance, we recommend you run the study in full screen mode.</span><br>
+		<br/>You will first be presented with a <b>trial set</b> of 10 questions which will include tasks similar to the ones you will need to perform in the actual study.<br/>
+		For the trial set, you will be provided with explicit instructions on how to interact with the visual element. You will have to use the same techniques in the actual study following the trial.<br/>
+		If you answer one or more questions in the trial wrong by a very large margin, you will be asked to <b>repeat the trial</b>.<br/>
+		For each question, you will have a shadow/gray element indicating your starting value/position. This is for your reference and will be provided in both the trial and the actual question set.<br/><br/>
+		For the <b>trial set only</b>, after completing each question, you will get a screen indicating <span style="color:blue">your response</span> in <span style="color:blue">blue</span> and the <span style="color:green">expected response</span> in <span style="color:green">green</span>.<br/>
+		<br/>
+		<span style="color:red">Kindly <b>DO NOT</b> refresh the page during the session</span>. If you wish to restart the study, you should go to <a href="http://pistudy.herokuapp.com/">http://pistudy.herokuapp.com/</a> or use the <span style="color:purple">"Restart the study"</span> button on each question and start a new session to ensure your logs are recorded correctly. You <b>WILL NOT</b> be paid unless we have a <b>complete set of logs</b> for your email address.<br/>
+		<br/>
+		Perform the required interaction for each question in order to progress to the next one.<br/>
+		Click "Start" to begin the trial set.
+		</p>
+		<button onclick="selectNextQuestion()" id="nextbutton">Start</button>		
+	</div>
+	<div id="closingnotes" align="center">
+		<p>Thank you for completing the trial.</p>		
+		<a href="actualquestionset.html">Begin the actual study.</a>
+	</div>
+	<div id="restartmessage" align="center">
+		<p>Sorry, your answers were very inaccurate for one or more questions. Please refresh the page to restart the questionnaire.</p>				
+	</div>
+</body>
+<script src="js/d3.slider.js"></script>
+<script type="text/javascript">
+	$("#textbox").hide();
+	$("#mycanvas").hide();
+	$("#submitbutton").hide();
+	$("#closingnotes").hide();
+	$("#restartmessage").hide();
+	$("#increaseButton").hide();
+	$("#decreaseButton").hide();
+	$("#responsetext").hide();
+	function getRandomInt(min, max) {
+  		return Math.floor(Math.random() * (max - min)) + min;
+	}
+	orderNum = getRandomInt(1,4);
+	//console.log(orderNum)
+	function objectPresentInList(object,list){
+		for(var i=0;i<list.length;i++){
+			if(object==list[i]){
+				return 1;
+			}
+		}
+		return 0;
+	}
+	function selectNextQuestion(){
+		if(firstTime==1){
+			$("#nextbutton").html('Next Question');
+			//$("#submitbutton").show();
+			$("#textbox").show();
+			$("#nextbutton").hide();
+			submitPressed=1;
+			var currentQuestionSetIndex = getRandomInt(0,100);
+			currentQuestionSet = questionSets[currentQuestionSetIndex]
+		}	
+		
+		if(submitPressed==0){
+			alert("Please complete the task and click submit before going to next question.");
+		}else{
+			//console.log(submitPressed+"-")
+			
+			$("#instructionstext").hide();
+			$("#nextbutton").hide();			
+			sendLogs();		
+			if(questionCount!=totalQuestionCount){
+				questionNumber+=1
+				/*do{
+					questionNumber = getRandomInt(1,11);
+				}while(objectPresentInList(questionNumber,coveredQuestions)==1);				
+				//questionNumber = 1;*/
+
+				//coveredQuestions.push(questionNumber);
+				//console.log(questionNumber);				
+				//questionNumber = 11
+				//questionNumber = 19
+				logs = [];
+				submitPressed=0;
+				//console.log(questionNumber);
+				if(orderNum==1){
+					if(questionNumber==11 || questionNumber==21){
+						$("#nextbutton").css("margin-top","200px")
+					}else{
+						$("#nextbutton").css("margin-top","0px")
+					}
+				}else if(orderNum==2){
+					if(questionNumber==13 || questionNumber==21){
+						$("#nextbutton").css("margin-top","200px")
+					}else{
+						$("#nextbutton").css("margin-top","0px")
+					}
+				}else if(orderNum==3){
+					if(questionNumber==13 || questionNumber==21){
+						$("#nextbutton").css("margin-top","200px")
+					}else{
+						$("#nextbutton").css("margin-top","0px")
+					}
+				}
+
+				if(orderNum == 1){
+					if(questionNumber==1){
+						drawQ1();
+					}else if(questionNumber==2){
+						drawQ1Ans(userEndValue);
+					}else if(questionNumber==3){
+						drawQ2();
+					}else if(questionNumber==4){
+						drawQ2Ans(userEndValue);
+					}else if(questionNumber==5){
+						drawQ3();
+					}else if(questionNumber==6){
+						drawQ3Ans(userEndValue);
+					}else if(questionNumber==7){
+						drawQ4();
+					}else if(questionNumber==8){
+						drawQ4Ans(userEndValue);
+					}else if(questionNumber==9){
+						drawQ5();
+					}else if(questionNumber==10){
+						drawQ5Ans(userEndValue);
+					}else if(questionNumber==11){
+						drawQ6();
+					}else if(questionNumber==12){
+						drawQ6Ans(userEndValue);
+					}else if(questionNumber==13){
+						drawQ7();
+					}else if(questionNumber==14){
+						drawQ7Ans(userEndValue);
+					}else if(questionNumber==15){
+						drawQ8();
+					}else if(questionNumber==16){
+						drawQ8Ans(userEndValue);
+					}else if(questionNumber==17){
+						drawQ9();
+					}else if(questionNumber==18){
+						drawQ9Ans(userEndValue);
+					}else if(questionNumber==19){
+						drawQ10();
+					}else if(questionNumber==20){
+						drawQ10Ans(userEndValue);
+					}else if(questionNumber==21){
+						drawQ11();
+					}else if(questionNumber==22){
+						drawQ11Ans(userEndValue);
+					}else if(questionNumber==23){
+						drawQ12();
+					}else if(questionNumber==24){
+						drawQ12Ans(userEndValue);
+					}
+				}else if(orderNum==2){
+					if(questionNumber==1){
+						drawQ4();						
+					}else if(questionNumber==2){
+						drawQ4Ans(userEndValue);						
+					}else if(questionNumber==3){
+						drawQ2();
+					}else if(questionNumber==4){
+						drawQ2Ans(userEndValue);
+					}else if(questionNumber==5){
+						drawQ3();
+					}else if(questionNumber==6){
+						drawQ3Ans(userEndValue);
+					}else if(questionNumber==7){
+						drawQ1();
+					}else if(questionNumber==8){
+						drawQ1Ans(userEndValue);
+					}else if(questionNumber==9){
+						drawQ5();
+					}else if(questionNumber==10){
+						drawQ5Ans(userEndValue);
+					}else if(questionNumber==11){
+						drawQ7();						
+					}else if(questionNumber==12){
+						drawQ7Ans(userEndValue);
+					}else if(questionNumber==13){
+						drawQ6();
+					}else if(questionNumber==14){
+						drawQ6Ans(userEndValue);						
+					}else if(questionNumber==15){
+						drawQ8();
+					}else if(questionNumber==16){
+						drawQ8Ans(userEndValue);
+					}else if(questionNumber==17){
+						drawQ10();						
+					}else if(questionNumber==18){
+						drawQ10Ans(userEndValue);						
+					}else if(questionNumber==19){
+						drawQ9();
+					}else if(questionNumber==20){
+						drawQ9Ans(userEndValue);
+					}else if(questionNumber==21){
+						drawQ11();
+					}else if(questionNumber==22){
+						drawQ11Ans(userEndValue);
+					}else if(questionNumber==23){
+						drawQ12();
+					}else if(questionNumber==24){
+						drawQ12Ans(userEndValue);
+					}
+				}else if(orderNum==3){
+					if(questionNumber==1){
+						drawQ4();						
+					}else if(questionNumber==2){
+						drawQ4Ans(userEndValue);						
+					}else if(questionNumber==3){
+						drawQ12();
+					}else if(questionNumber==4){
+						drawQ12Ans(userEndValue);
+					}else if(questionNumber==5){
+						drawQ3();
+					}else if(questionNumber==6){
+						drawQ3Ans(userEndValue);
+					}else if(questionNumber==7){
+						drawQ1();
+					}else if(questionNumber==8){
+						drawQ1Ans(userEndValue);
+					}else if(questionNumber==9){
+						drawQ5();
+					}else if(questionNumber==10){
+						drawQ5Ans(userEndValue);
+					}else if(questionNumber==11){
+						drawQ7();						
+					}else if(questionNumber==12){
+						drawQ7Ans(userEndValue);
+					}else if(questionNumber==13){
+						drawQ6();
+					}else if(questionNumber==14){
+						drawQ6Ans(userEndValue);						
+					}else if(questionNumber==15){
+						drawQ9();
+					}else if(questionNumber==16){
+						drawQ9Ans(userEndValue);
+					}else if(questionNumber==17){
+						drawQ10();						
+					}else if(questionNumber==18){
+						drawQ10Ans(userEndValue);						
+					}else if(questionNumber==19){
+						drawQ11();						
+					}else if(questionNumber==20){
+						drawQ11Ans(userEndValue);
+					}else if(questionNumber==21){
+						drawQ8();						
+					}else if(questionNumber==22){
+						drawQ8Ans(userEndValue);						
+					}else if(questionNumber==23){
+						drawQ2();
+					}else if(questionNumber==24){
+						drawQ2Ans(userEndValue);						
+					}
+				}
+
+
+				questionCount+=0.5;
+			}else{
+				$("#maincontent").hide();
+				$("#closingnotes").show();
+				/*console.log(answers)
+				if(answers["width_1"]<300 || answers["width_1"]>500){
+					$("#restartmessage").show();
+				}else if(answers["height_1"]<50 || answers["height_1"]>250){
+					$("#restartmessage").show();
+				}else if(answers["circle_area_1"]<60 || answers["circle_area_1"]>80){
+					$("#restartmessage").show();
+				}else if(answers["square_area_1"]<40000 || answers["square_area_1"]>80000){
+					$("#restartmessage").show();
+				}else if(answers["angle_1"]<-45 || answers["angle_1"]>-15){
+					$("#restartmessage").show();
+				}else if(answers["slider_1"]<10 || answers["slider_1"]>40){
+					$("#restartmessage").show();
+				}else if(answers["distance_1"]<350 || answers["distance_1"]>550){
+					$("#restartmessage").show();
+				}else if(answers["line_shape_1"][1]<200 || answers["line_shape_1"][1]>300){
+					$("#restartmessage").show();
+				}else{					
+					$("#closingnotes").show();
+					var confirmationIDs=["ABCD1234","ABCD0987","ABCD2345","ABCD5678"];
+					var index = getRandomInt(1,5);				
+				}*/
+			}
+			if(questionNumber%2!=0){
+				$("#questionnumbertext").text("Question "+(questionCount+0.5)+" of "+totalQuestionCount+".");	
+			}
+		}
+	}
+
+//Question 1
+	function drawQ1(){
+		$("#mycanvas").hide();
+		$("#sliderDiv").remove();
+		$("#sliderDiv1").remove();
+		$("#increaseButton").hide();
+		$("#decreaseButton").hide();
+		d3.selectAll("svg").remove();
+		$("#responsetext").hide();
+		$("#questiontext").html("<p>Make the height of the rectangle <b>150%</b> of its current value.</p>");
+		$("#interaction").text("Interaction: Click and drag the dark gray bar on the upper end of the rectangle to adjust its height.");
+		var svg, frameGroup, dragRect, dragBarTop, dragBarRight, rotateHandler,
+	    x = 300, y = 400,
+	    angle = 0,
+	    width = 200, height = 100,
+	    bar = 6,
+	    that = this;
+		svg = d3.select('#viz').append('svg').attr({
+		    width: 800,
+		    height: 550
+		});
+
+		svg.append("rect")
+	       .attr("x",0)
+	       .attr("y",0)
+	       .attr("width",800)
+	       .attr("height",550)
+	       .attr("fill","white")
+	       .style("stroke","black");
+
+		frameGroup = svg.append('g')
+		.attr({
+		    'pointer-events': 'all',
+		    'class': 'dummy frameGroup'
+		});
+
+		dragRectStatic = frameGroup.append('rect')
+		.attr('class', 'dummy dragRectStatic')
+		.attr('fill', 'black')
+		.attr('fill-opacity', 0.2)
+		.attr("x",x)
+		.attr("y",y)
+		.attr("width",width)
+		.attr("height",height);
+
+		dragRect = frameGroup.append('rect')
+		.attr('class', 'dummy dragRect')
+		.attr('fill', 'black')
+		.attr('fill-opacity', 0.5);
+
+				
+
+		dragBarTop = frameGroup.append('rect')
+		.attr('class', 'dummy dragBarTop')
+		.attr('fill', 'black')
+		.attr('fill-opacity', 0.6)
+		.attr('cursor', 'ns-resize')
+		.call(d3.behavior.drag().on('drag', function() {
+		    height = height + (y - d3.event.y);
+		    y = d3.event.y;
+		    if (height < bar) {
+		        return;
+		    }
+		    $("#nextbutton").show();
+		    positionate();
+		}));
+		var skipLog=1;
+		positionate();
+
+		function positionate() {
+		    var rotate, translate;
+		    rotate = ' rotate(' + angle + ', ' + (width / 2) + ', ' + (height / 2) + ')';
+		    translate = 'translate(' + x + ',' + y + ')';
+		    dragRect.attr('transform', translate + rotate);
+		    dragRect.attr('width', width);
+		    dragRect.attr('height', height);
+
+		    rotate = ' rotate(' + angle + ', ' + (width / 2) + ', ' + (height / 2) + ')';
+		    translate = 'translate(' + x + ',' + y + ')';
+		    dragBarTop.attr('transform', translate + rotate);
+		    dragBarTop.attr('height', bar);
+		    dragBarTop.attr('width', width);
+
+			var currentdate = new Date(); 
+			var datetime = "Last Sync: " + currentdate.getDate() + "/"
+		                + (currentdate.getMonth()+1)  + "/" 
+		                + currentdate.getFullYear() + " @ "  
+		                + currentdate.getHours() + ":"  
+		                + currentdate.getMinutes() + ":" 
+		                + currentdate.getSeconds() + ":" 
+		                + currentdate.getMilliseconds();
+		   	if(skipLog!=1){
+		   		logs.push({"user":sessionUserId,"datetime":datetime,"question":"height_1","value":height,"start_value":"false","end_value":"false"});	
+		   	}
+		 	skipLog=0;
+		}
+	}
+
+
+//Question 2	
+	function drawQ2(){
+	$("#mycanvas").hide();
+	$("#sliderDiv").remove();
+	$("#sliderDiv1").remove();
+	$("#increaseButton").hide();
+	$("#decreaseButton").hide();
+	d3.selectAll("svg").remove();
+	$("#responsetext").hide();
+	$("#questiontext").html("<p>Move the circle such that the distance from the target (gray rectangle on the right) is <b>50%</b> of its current value.</p>");
+	$("#interaction").text("Interaction: Drag the black circle either left or right to change its position.");
+
+	var svg, frameGroup, dragRect, dragBarTop, dragBarRight, rotateHandler,
+    x = 200, y = 100,
+    angle = 0,
+    width = 200, height = 100,
+    bar = 6,
+    that = this;
+
+svg = d3.select('#viz').append('svg').attr({
+    width: 1000,
+    height: 300
+});
+svg.append("rect")
+       .attr("x",0)
+       .attr("y",0)
+       .attr("width",1000)
+       .attr("height",300)
+       .attr("fill","white")
+       .style("stroke","black");
+
+
+frameGroup = svg.append('g')
+.attr({
+    'class': 'dummy frameGroup'
+});
+
+targetRect = frameGroup.append('rect')
+.attr('class', 'targetRect')
+.attr('fill', 'black')
+.style('fill-opacity', '0.4')
+.attr("x",900)
+.attr("y",100)
+.attr("width",5)
+.attr("height",50);
+
+		frameGroup.append('circle')
+				  .attr('class','dummy dragCircleRightStatic')				  
+				  .attr('r',8)
+				  .attr('cx',400)
+				  .attr('cy',125)
+				  .style('fill','black')
+				  .style('fill-opacity',0.2);
+
+dragCircleRight = frameGroup.append('circle')
+.attr('class', 'dummy dragCircleRight')
+.attr('r',8)
+.attr('cx',x)
+.attr('cy',25)
+.attr('fill', 'black')
+.attr('cursor', 'ew-resize')
+.call(d3.behavior.drag().on('drag', function() {
+    x = x + d3.event.dx;
+    $("#nextbutton").show();
+    positionate();
+}));
+
+
+
+var skipLog=1;
+positionate();
+
+function positionate() {
+    var rotate, translate;
+    
+    //rotate = ' rotate(' + angle + ', ' + (-1 * width / 2) + ', ' + (height / 2) + ')';
+    translate = 'translate(' + (x) + ',' + y + ')';
+    dragCircleRight.attr('transform', translate );
+    //console.log(x)
+    var currentdate = new Date(); 
+	var datetime = "Last Sync: " + currentdate.getDate() + "/"
+                + (currentdate.getMonth()+1)  + "/" 
+                + currentdate.getFullYear() + " @ "  
+                + currentdate.getHours() + ":"  
+                + currentdate.getMinutes() + ":" 
+                + currentdate.getSeconds() +":"
+                + currentdate.getMilliseconds();
+
+               /* console.log(900-(x+200))
+                console.log("x="+x)*/
+
+    if(skipLog!=1){
+    	logs.push({"user":sessionUserId,"datetime":datetime,"question":"distance_1","value":x,"start_value":"false","end_value":"false"});
+    }
+    skipLog=0;    
+}
+
+}
+/*
+ public static double angleBetween2Lines(Line2D line1, Line2D line2)
+    {
+        double angle1 = Math.atan2(line1.getY1() - line1.getY2(),
+                                   line1.getX1() - line1.getX2());
+        double angle2 = Math.atan2(line2.getY1() - line2.getY2(),
+                                   line2.getX1() - line2.getX2());
+        return angle1-angle2;
+    }*/
+//Question 3
+	function drawQ3(){
+		$("#sliderDiv").remove();
+		$("#sliderDiv1").remove();
+		$("#increaseButton").hide();
+		$("#decreaseButton").hide();
+		d3.selectAll("svg").remove();
+		$("#responsetext").hide();
+		$("#questiontext").html("<p>Make the curve <b>50%</b> of its current value.</p>");
+		$("#interaction").text("Interaction: Drag the circle upwards or downwards to bend the line in the respective direction.");
+		$("#mycanvas").show();
+		(function() {
+
+  var canvas, ctx, code, point, point1, style,style1, drag = null, dPoint,fakePoint;
+
+  // define initial points
+  function Init(quadratic) {
+  	
+  	fakePoint = {
+      p1: { x:100, y:250 },
+      p2: { x:400, y:250 }
+    };
+
+  	point1 = {
+      p1: { x:100, y:250 },
+      p2: { x:400, y:250 }
+    };
+    
+    if (quadratic) {
+      point1.cp1 = { x: 250, y: 200 };      
+    }
+    else {
+      point1.cp1 = { x: 150, y: 150 };
+      point1.cp2 = { x: 350, y: 150 };
+    }
+    // default styles
+    style1 = {
+      curve:  { width: 2, color: "#ccc" },
+      cpline: { width: 1, color: "#ffffff" },
+      point1: { radius: 5, width: 1, color: "#ccc", fill: "rgba(255,255,255,0.5)", arc1: 0, arc2: 2 * Math.PI },
+    }
+    
+    point = {
+      p1: { x:100, y:250 },
+      p2: { x:400, y:250 }
+    };
+    
+    if (quadratic) {
+      point.cp1 = { x: 250, y: 200 };  
+      fakePoint.cp1 = { x: 250, y: 225 };   
+    }
+    else {
+      point.cp1 = { x: 150, y: 150 };
+      point.cp2 = { x: 350, y: 150 };
+    }
+    // default styles
+    style = {
+      curve:  { width: 2, color: "#333" },
+      cpline: { width: 1, color: "#ffffff" },
+      point: { radius: 5, width: 1, color: "#333", fill: "rgba(255,255,255,0.5)", arc1: 0, arc2: 2 * Math.PI },
+      fakePoint: { radius: 5, width: 1, color: "#333", fill: "rgba(255,255,255,0.5)", arc1: 0, arc2: 2 * Math.PI },
+    }
+
+    // line style defaults
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    
+    // event handlers
+    canvas.onmousedown = DragStart;
+    canvas.onmousemove = Dragging;
+    canvas.onmouseup = canvas.onmouseout = DragEnd;
+    DrawCanvas();
+  }
+  
+  
+  // draw canvas
+  function DrawCanvas() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // control lines
+    ctx.lineWidth = style1.cpline.width;
+    ctx.strokeStyle = style1.cpline.color;
+    ctx.beginPath();
+    ctx.moveTo(point1.p1.x, point1.p1.y);
+    
+    ctx.lineTo(point1.cp1.x, point1.cp1.y);
+    ctx.lineTo(point1.cp1.x, point1.cp1.y);
+    if (point1.cp2) {
+      ctx.moveTo(point1.p2.x, point1.p2.y);
+      ctx.lineTo(point1.cp2.x, point1.cp2.y);
+    }
+    else {
+      ctx.lineTo(point1.p2.x, point1.p2.y);
+    }
+    ctx.stroke();
+    
+    // curve
+    ctx.lineWidth = style1.curve.width;
+    ctx.strokeStyle = style1.curve.color;
+    ctx.beginPath();
+    ctx.moveTo(point1.p1.x, point1.p1.y);
+    if (point1.cp2) {
+      ctx.bezierCurveTo(point1.cp1.x, point1.cp1.y, point1.cp2.x, point1.cp2.y, point1.p2.x, point1.p2.y);
+    }
+    else {
+      ctx.quadraticCurveTo(point1.cp1.x, point1.cp1.y, point1.p2.x, point1.p2.y);
+    }
+    ctx.stroke();
+
+    // control points    
+    /*
+    ctx.lineWidth = style1.point1.width;
+    ctx.strokeStyle = style1.point1.color;
+    ctx.fillStyle = style1.point1.fill;
+    ctx.beginPath();
+    ctx.arc(point1.cp1.x, point1.cp1.y, style1.point1.radius, style1.point1.arc1, style1.point1.arc2, true);
+    ctx.fill();
+    ctx.stroke();
+	*/
+    // control lines
+    ctx.lineWidth = style.cpline.width;
+    ctx.strokeStyle = style.cpline.color;
+    ctx.beginPath();
+    ctx.moveTo(point.p1.x, point.p1.y);
+    
+    ctx.lineTo(point.cp1.x, point.cp1.y);
+    ctx.lineTo(point.cp1.x, point.cp1.y);
+    if (point.cp2) {
+      ctx.moveTo(point.p2.x, point.p2.y);
+      ctx.lineTo(point.cp2.x, point.cp2.y);
+    }
+    else {
+      ctx.lineTo(point.p2.x, point.p2.y);
+    }
+    ctx.stroke();
+    
+    // curve
+    ctx.lineWidth = style.curve.width;
+    ctx.strokeStyle = style.curve.color;
+    ctx.beginPath();
+    ctx.moveTo(point.p1.x, point.p1.y);
+    if (point.cp2) {
+      ctx.bezierCurveTo(point.cp1.x, point.cp1.y, point.cp2.x, point.cp2.y, point.p2.x, point.p2.y);
+    }
+    else {
+      ctx.quadraticCurveTo(point.cp1.x, point.cp1.y, point.p2.x, point.p2.y);
+    }
+    ctx.stroke();
+
+    // control points    
+
+      ctx.lineWidth = style.point.width;
+      ctx.strokeStyle = style.point.color;
+      ctx.fillStyle = style.point.fill;
+      ctx.beginPath();
+      ctx.arc(point.cp1.x, point.cp1.y, style.point.radius, style.point.arc1, style.point.arc2, true);
+      ctx.fill();
+      //ctx.stroke();
+    
+      //fakePoint
+      ctx.lineWidth = style.fakePoint.width;
+      ctx.strokeStyle = style.fakePoint.color;
+      ctx.fillStyle = style.fakePoint.fill;
+      ctx.beginPath();
+      ctx.arc(fakePoint.cp1.x, fakePoint.cp1.y, style.fakePoint.radius, style.fakePoint.arc1, style.fakePoint.arc2, true);
+      ctx.fill();
+      ctx.stroke();
+
+    //ShowCode();
+  }
+  
+  /*
+  // show canvas code
+  function ShowCode() {
+    if (code) {
+      code.firstChild.nodeValue = 
+        "canvas = document.getElementById(\"mycanvas\");\n"+
+        "ctx = canvas.getContext(\"2d\")\n"+
+        "ctx.lineWidth = " + style.curve.width +
+        ";\nctx.strokeStyle = \"" + style.curve.color +
+        "\";\nctx.beginPath();\n" +
+        "ctx.moveTo(" + point.p1.x + ", " + point.p1.y +");\n" +
+        (point.cp2 ? 
+          "ctx.bezierCurveTo("+point.cp1.x+", "+point.cp1.y+", "+point.cp2.x+", "+point.cp2.y+", "+point.p2.x+", "+point.p2.y+");" :
+          "ctx.quadraticCurveTo("+point.cp1.x+", "+point.cp1.y+", "+point.p2.x+", "+point.p2.y+");"
+        ) +
+        "\nctx.stroke();"
+      ;
+    }
+  }*/
+  
+  
+  // start dragging
+  function DragStart(e) {
+    e = MousePos(e);
+    var dx, dy;
+    for (var p in fakePoint) {
+      dx = fakePoint[p].x - e.x;
+      dy = fakePoint[p].y - e.y;
+      if ((dx * dx) + (dy * dy) < style.fakePoint.radius * style.fakePoint.radius) {
+        drag = p;
+        dPoint = e;
+        canvas.style.cursor = "move";
+        return;
+      }
+    }
+  }
+  
+  
+  // dragging
+  function Dragging(e) {
+    if (drag) {
+      e = MousePos(e);
+      //console.log(e)
+      if(e.y<=250){
+	      fakePoint[drag].x = fakePoint.cp1.x;
+	      fakePoint[drag].y += e.y - dPoint.y;
+	      point[drag].y = 250-((250-fakePoint[drag].y)*2)
+	      dPoint = e;
+	      DrawCanvas();
+      }      
+    }    
+  }
+  
+  
+  // end dragging
+  function DragEnd(e) {
+  	$("#nextbutton").show();
+    drag = null;
+    canvas.style.cursor = "default";
+    DrawCanvas();
+    var currentdate = new Date(); 
+	var datetime = "Last Sync: " + currentdate.getDate() + "/"
+		                + (currentdate.getMonth()+1)  + "/" 
+		                + currentdate.getFullYear() + " @ "  
+		                + currentdate.getHours() + ":"  
+		                + currentdate.getMinutes() + ":" 
+		                + currentdate.getSeconds() + ":" 
+		                + currentdate.getMilliseconds();
+
+	//console.log(-1*(point.cp1.y-250))
+//100,250
+//400,250
+//250,200
+	/*var angle1 = Math.atan2(point.cp1.y - 250,point.cp1.x - 100);
+    var angle2 = Math.atan2(point.cp1.y - 250,point.cp1.x - 400);*/
+    var AB = Math.sqrt(Math.pow(point.cp1.x-100,2)+ Math.pow(point.cp1.y-250,2));    
+    var BC = Math.sqrt(Math.pow(point.cp1.x-400,2)+ Math.pow(point.cp1.y-250,2)); 
+    var AC = Math.sqrt(Math.pow(400-100,2)+ Math.pow(250-250,2));
+    //console.log();
+    var radians = Math.acos((BC*BC+AB*AB-AC*AC)/(2*BC*AB));
+    var degrees = radians * (180/3.141592653589793);
+    //console.log("actual  "+parseInt(degrees))
+    //console.log("180-actual  "+parseInt(180-degrees))
+    //console.log(-1*(point.cp1.y-250))
+    //console.log(point.cp1.x,point.cp1.y)    
+//console.log(point.cp1.y,point.cp1.x)
+    logs.push({"user":sessionUserId,"datetime":datetime,"question":"line_shape_1","value":point.cp1.x+","+point.cp1.y+","+point.p2.x+","+point.p2.y,"start_value":"false","end_value":"false"});
+  }
+
+  
+  // event parser
+  function MousePos(event) {
+    event = (event ? event : window.event);
+    return {
+      x: event.pageX - canvas.offsetLeft,
+      y: event.pageY - canvas.offsetTop
+    }
+  }
+  // start
+  canvas = document.getElementById("mycanvas");
+  code = document.getElementById("code");
+  if (canvas.getContext) {
+    ctx = canvas.getContext("2d");
+    Init(canvas.className == "quadratic");
+  }
+  
+})(); 
+	}
+
+
+//Question 4
+function drawQ4(){
+		$("#mycanvas").hide();
+		$("#sliderDiv").remove();
+		$("#sliderDiv1").remove();
+		$("#increaseButton").hide();
+		$("#decreaseButton").hide();
+		d3.selectAll("svg").remove();
+		$("#responsetext").hide();
+		$("#questiontext").html("<p>Make the inner angle between the two lines <b>200%</b> of its current value.</p>");
+		$("#interaction").text("Interaction: Drag the black circle to move the line.");
+
+		var svg, frameGroup, dragRect, dragBarTop, dragBarRight, rotateHandler,
+    x1 = 300, y1 = 250,
+    x2 = 500, y2 = 200
+    angle = 0,
+    width = 200, height = 5,
+    bar = 6,
+    that = this;
+
+svg = d3.select('#viz').append('svg').attr({
+    width: 800,
+    height: 500
+});
+svg.append("rect")
+       .attr("x",0)
+       .attr("y",0)
+       .attr("width",800)
+       .attr("height",500)
+       .attr("fill","white")
+       .style("stroke","black");
+frameGroup = svg.append('g')
+.attr({
+    'pointer-events': 'all',
+    'class': 'frameGroup'
+});
+
+staticDragLine = frameGroup.append("line")
+					 .attr("class", "staticDragLine")
+					 .attr("x1",x1)
+					 .attr("y1",y1)
+					 .attr("x2",x2)
+					 .attr("y2",y2)
+					 .style("stroke","black")
+					 .style("stroke-opacity",0.2);
+
+dragLine = frameGroup.append("line")
+					 .attr("class", "dragLine")
+					 .attr("x1",x1)
+					 .attr("y1",y1)
+					 .attr("x2",x2)
+					 .attr("y2",y2)
+					 .style("stroke","black")
+					 .style("stroke-width",2);
+
+staticLine = svg.append("line")
+					 .attr("class", "dragLine1")
+					 .attr("x1",x1)
+					 .attr("y1",y1)
+					 .attr("x2",x1+200)
+					 .attr("y2",y1)
+					 .style("stroke","black")
+					 .style("stroke-width",2);
+
+var initialAngle = Math.atan2(y2-y1, x2-x1) * (180 / Math.PI);
+
+/*
+staticCircle = frameGroup.append('circle')
+.attr('class', 'staticCircle')
+.attr('r', bar)
+.attr('fill', 'black')
+.attr('fill-opacity', 0.2)
+.attr("cx",x2)
+.attr("cy",y2);*/
+
+rotateHandler = frameGroup.append('circle')
+.attr('class', 'rotateHandler')
+.attr('r', bar)
+.attr('fill', 'black')
+.attr('fill-opacity', 1)
+.attr('stroke-width', 1)
+.attr('stroke', 'white')
+.attr("cursor","move")
+.attr("cx",x2)
+.attr("cy",y2)
+.call(d3.behavior.drag().on('drag', function() {
+    var pointerX = d3.event.x,
+        pointerY = d3.event.y;
+	
+    angle = Math.atan2(pointerY-y1, pointerX-x1) * (180 / Math.PI);    
+    $("#nextbutton").show();
+    //console.log(angle)
+    if(angle<=0){
+    	positionate();
+    }
+}));
+
+var skipLog=1;
+
+function positionate() {
+    var rotate, translate;
+    //console.log(angle)
+    if(angle>initialAngle){
+    	rotate = ' rotate(' + (angle-initialAngle) + ', ' + x1 + ', ' + y1 + ')';	
+    }else{
+    	rotate = ' rotate(' + (-1*(initialAngle-angle)) + ', ' + x1 + ', ' + y1 + ')';	
+    }
+	translate = 'translate(' + 0 + ',' + 0 + ')';
+    dragLine.attr('transform', translate + rotate);
+    
+    rotateHandler.attr('transform', translate + rotate);
+    
+	var currentdate = new Date(); 
+	var datetime = "Last Sync: " + currentdate.getDate() + "/"
+	                + (currentdate.getMonth()+1)  + "/" 
+	                + currentdate.getFullYear() + " @ "  
+	                + currentdate.getHours() + ":"  
+	                + currentdate.getMinutes() + ":" 
+	                + currentdate.getSeconds() + ":" 
+			        + currentdate.getMilliseconds();
+
+	//console.log(angle)			        
+	//console.log(d3.event.x,d3.event.y)
+
+    if(skipLog!=1){	
+		logs.push({"user":sessionUserId,"datetime":datetime,"question":"angle_1","value":d3.event.x+","+d3.event.y,"start_value":"false","end_value":"false"});	
+   	}
+	skipLog=0;
+}
+
+}
+
+//Question 5
+	function drawQ5(){
+		$("#mycanvas").hide();
+		$("#sliderDiv").remove();
+		$("#sliderDiv1").remove();
+		$("#increaseButton").hide();
+		$("#decreaseButton").hide();
+		d3.selectAll("svg").remove();
+		$("#responsetext").hide();
+		$("#questiontext").html("<p>Make the area of the circle <b>150%</b> of its current value.</p>");
+		$("#interaction").text("Interaction: Drag the black circle left or right to adjust the size of the circle.");
+
+		var svg, frameGroup, dragRect, dragBarTop, dragBarRight, rotateHandler,
+    x = 500, y = 325,
+    angle = 0,
+    r = 40//, height = 5,
+    dragR = 6,
+    that = this;
+
+    svg = d3.select('#viz').append('svg').attr({
+        width: 1000,
+        height: 650
+    });
+
+    svg.append("rect")
+       .attr("x",0)
+       .attr("y",0)
+       .attr("width",1000)
+       .attr("height",650)
+       .attr("fill","white")
+       .style("stroke","black");
+
+    svg.append("circle")
+       .attr("class","staticCircle")
+       .attr("cx",x)
+       .attr("cy",y)
+       .attr("r",r)
+       .attr("fill","black")
+       .style("opacity",0.2);
+
+    svg.append("circle")
+       .attr("class","vizelement")
+       .attr("cx",x)
+       .attr("cy",y)
+       .attr("r",r)
+       .attr("fill","black")
+       .style("opacity",0.5);
+
+    /*svg.append("circle")
+       .attr("class","staticCircle")
+       .attr("cx",x+r)
+       .attr("cy",y)
+       .attr("r",dragR)
+       .attr("fill","black")
+       .attr("fill-opacity",0.2);*/
+
+    svg.append("circle")
+       .attr("class","circleareadragger")
+       .attr("cx",x+r)
+       .attr("cy",y)
+       .attr("r",dragR)
+       .attr("fill","black")
+       .call(d3.behavior.drag().on('drag', function() {
+        r = r + d3.event.dx;
+        if (r < dragR) {
+            return;
+        }        
+        positionate();
+    }));
+    //positionate(); 
+
+    function positionate() {
+    d3.select(".vizelement").attr('r', r);
+    $("#nextbutton").show();
+    translate = 'translate(' + (r-40) + ',' + 0 + ')';
+    d3.select('.circleareadragger').attr('transform', translate);
+    var currentdate = new Date(); 
+	var datetime = "Last Sync: " + currentdate.getDate() + "/"
+                + (currentdate.getMonth()+1)  + "/" 
+                + currentdate.getFullYear() + " @ "  
+                + currentdate.getHours() + ":"  
+                + currentdate.getMinutes() + ":" 
+                + currentdate.getSeconds() + ":" 
+		        + currentdate.getMilliseconds();
+
+    	logs.push({"user":sessionUserId,"datetime":datetime,"question":"circle_area_1","value":r,"start_value":"false","end_value":"false"});	
+    }		
+
+	}
+
+//Question 6
+function drawQ6(){
+	$("#mycanvas").hide();
+	$("#sliderDiv").remove();
+	$("#sliderDiv1").remove();
+	$("#increaseButton").hide();
+	$("#decreaseButton").hide();
+	d3.selectAll("svg").remove();
+	$("#responsetext").hide();
+	$("#questiontext").html("<p>Make the slider box's position <b>50%</b> of its current value.</p>");
+	$("#interaction").text("Interaction: Drag the slider box left or right to change its position.");
+	var x = document.body.offsetWidth/3;
+	$('#viz').append("<div id=\"sliderDiv1\" align='center' style=\"width:800px;margin-left: "+x+"px;margin-right: auto;position:absolute;\"></div>");
+	$('#viz').append("<div id=\"sliderDiv\" align='center' style=\"width:800px;margin-left: "+x+"px;margin-right: auto;z-index:10;\"></div>");
+	//.axis(d3.svg.axis().orient("bottom").ticks("1"))
+	var labels = ["min","max"];
+	d3.select('#sliderDiv1').call(d3.slider().value(50)).style("opacity",0.5);
+	//d3.select('#sliderDiv').call(d3.slider().value(50).axis(d3.svg.axis().orient("bottom").ticks("1")).on("slide", function(evt, value) {
+	d3.select('#sliderDiv').call(d3.slider().value(50).on("slide", function(evt, value) {
+	  $("#nextbutton").show();	  
+	  var currentdate = new Date(); 
+	var datetime = "Last Sync: " + currentdate.getDate() + "/"
+                + (currentdate.getMonth()+1)  + "/" 
+                + currentdate.getFullYear() + " @ "  
+                + currentdate.getHours() + ":"  
+                + currentdate.getMinutes() + ":" 
+                + currentdate.getSeconds() + ":" 
+		        + currentdate.getMilliseconds();
+	  logs.push({"user":sessionUserId,"datetime":datetime,"question":"slider_1","value":value,"start_value":"false","end_value":"false"});//console.log(value)
+    }).axis(d3.svg.axis().orient("bottom").ticks("1")));	
+    d3.select(".d3-slider-axis.d3-slider-axis-bottom").selectAll("text").each(function(d){
+    	//console.log(d)
+    	if(d=="0"){
+    		d3.select(this).text("low")
+    	}else if(d=="100"){
+    		d3.select(this).text("high")
+    	}
+    })
+}
+
+//Question 7
+function drawQ7(){
+	$("#mycanvas").hide();
+	$("#sliderDiv").remove();
+	$("#sliderDiv1").remove();
+	$("#increaseButton").hide();
+	$("#decreaseButton").hide();
+	$("#responsetext").hide();
+	d3.selectAll("svg").remove();
+	$("#questiontext").html("<p>Make the area of the square <b>150%</b> of its current value.</p>");
+	$("#interaction").text("Interaction: Drag the black circle to change the area of the square.");
+
+	var svg, frameGroup, dragRect, dragBarTop, dragBarRight, rotateHandler,
+    x = 400, y = 150,
+    width = 200, height = 200,
+    dragR = 6,
+    that = this;
+
+    svg = d3.select('#viz').append('svg').attr({
+        width: 1500,
+        height: 700
+    });
+    svg.append("rect")
+       .attr("x",0)
+       .attr("y",0)
+       .attr("width",1500)
+       .attr("height",700)
+       .attr("fill","white")
+       .style("stroke","black");
+
+
+    svg.append("rect")
+       .attr("class","staticSquare")
+       .attr("x",x)
+       .attr("y",y)
+       .attr("width",width)
+       .attr("height",height)
+       .attr("fill","black")
+       .style("opacity",0.2);
+
+    svg.append("rect")
+       .attr("class","vizelement")
+       .attr("x",x)
+       .attr("y",y)
+       .attr("width",width)
+       .attr("height",height)
+       .attr("fill","black")
+       .style("opacity",0.5);
+
+    centerX = x + width;
+    centerY = y + height;
+
+var pointerX,pointerY;
+	
+	/*svg.append("circle")
+       .attr("class","staticCircle")
+       .attr("cx",x+width)
+       .attr("cy",y+height)
+       .attr("r",dragR)
+       .attr("fill","black")
+       .attr("fill-opacity",0.2);*/
+
+
+    svg.append("circle")
+       .attr("class","rectareadragger")
+       .attr("cx",x+width)
+       .attr("cy",y+height)
+       .attr("r",dragR)
+       .attr("fill","black")
+       .call(d3.behavior.drag().on('drag', function() {
+        height = height + d3.event.dy;
+        width = width + d3.event.dy;
+        if ((width*height) < (Math.PI*dragR*dragR)) {
+            return;
+        }        
+        pointerX = d3.event.sourceEvent.x,
+        pointerY = d3.event.sourceEvent.y;
+        //console.log(width,height)
+        //angle = Math.atan2(pointerY - centerY, pointerX - centerX) * (180 / Math.PI);
+        if(width<10 && height<10){
+        	return;
+        }else{
+        	positionate();
+        }        
+    }));
+    //positionate(); 
+
+    function positionate() {
+    $("#nextbutton").show();
+    d3.select(".vizelement").attr('width', width).attr('height', height);
+    //translate = 'translate(' + (r-40) + ',' + 0 + ')';
+    //d3.select('.dragger').attr('transform', translate);
+    //console.log(width,height)
+    //rotate = 'rotate(' + angle + ', ' + (-1 * width / 2) + ', ' + 0 + ')';
+    translate = 'translate(' + (width-200) + ',' + (height-200) + ')';
+    d3.select('.rectareadragger').attr('transform', translate);
+    var currentdate = new Date(); 
+	var datetime = "Last Sync: " + currentdate.getDate() + "/"
+                + (currentdate.getMonth()+1)  + "/" 
+                + currentdate.getFullYear() + " @ "  
+                + currentdate.getHours() + ":"  
+                + currentdate.getMinutes() + ":" 
+                + currentdate.getSeconds() + ":" 
+				+ currentdate.getMilliseconds();
+
+    logs.push({"user":sessionUserId,"datetime":datetime,"question":"square_area_1","value":(width*height),"start_value":"false","end_value":"false"});
+    }
+}
+
+//template for new function
+function drawQ8(){
+	$("#mycanvas").hide();
+	$("#sliderDiv").remove();
+	$("#sliderDiv1").remove();
+	$("#increaseButton").hide();
+	$("#decreaseButton").hide();
+	d3.selectAll("svg").remove();
+	$("#responsetext").hide();
+	$("#questiontext").html("<p>Make the width <b>200%</b> of its current value.</p>");
+	$("#interaction").text("Interaction: Drag the dark gray bar on the right to adjust the width of the rectangle.");
+
+	var svg, frameGroup, dragRect, dragBarTop, dragBarRight, rotateHandler,
+    x = 300, y = 100,
+    angle = 0,
+    width = 200, height = 100,
+    bar = 6,
+    that = this;
+
+svg = d3.select('#viz').append('svg').attr({
+    width: 1000,
+    height: 300
+});
+svg.append("rect")
+       .attr("x",0)
+       .attr("y",0)
+       .attr("width",1000)
+       .attr("height",300)
+       .attr("fill","white")
+       .style("stroke","black");
+
+
+frameGroup = svg.append('g')
+.attr({
+    'class': 'dummy frameGroup'
+});
+
+staticRect = frameGroup.append('rect')
+.attr('class', 'dummy dragRectStatic')
+.attr('fill', 'black')
+.attr('fill-opacity', 0.1)
+.attr("width",width)
+.attr("height",height)
+.attr("x",x)
+.attr("y",y);
+
+dragRect = frameGroup.append('rect')
+.attr('class', 'dummy dragRect')
+.attr('fill', 'black')
+.attr('fill-opacity', 0.4);
+
+/*
+staticBar = frameGroup.append('rect')
+.attr('class', 'dummy staticBar')
+.attr('fill', 'black')
+.attr('fill-opacity', 0.2)
+.attr('width',5)
+.attr('height',height)
+.attr('x',x+width)
+.attr('y',y);
+*/
+dragBarRight = frameGroup.append('rect')
+.attr('class', 'dummy dragBarRight')
+.attr('fill', 'black')
+.attr('fill-opacity', 0.6)
+.attr('cursor', 'ew-resize')
+.call(d3.behavior.drag().on('drag', function() {
+    width = width + d3.event.dx;
+    if (width < bar) {
+        return;
+    }
+    $("#nextbutton").show();
+    positionate();
+}));
+var skipLog=1;
+positionate();
+
+function positionate() {
+    var rotate, translate;
+    rotate = ' rotate(' + angle + ', ' + (width / 2) + ', ' + (height / 2) + ')';
+    translate = 'translate(' + x + ',' + y + ')';
+    dragRect.attr('transform', translate + rotate);
+    dragRect.attr('width', width);
+    dragRect.attr('height', height);
+
+    rotate = ' rotate(' + angle + ', ' + (-1 * width / 2) + ', ' + (height / 2) + ')';
+    translate = 'translate(' + (x + width) + ',' + y + ')';
+    dragBarRight.attr('transform', translate + rotate);
+    dragBarRight.attr('height', height);
+    dragBarRight.attr('width', bar);
+
+    var currentdate = new Date(); 
+	var datetime = "Last Sync: " + currentdate.getDate() + "/"
+                + (currentdate.getMonth()+1)  + "/" 
+                + currentdate.getFullYear() + " @ "  
+                + currentdate.getHours() + ":"  
+                + currentdate.getMinutes() + ":" 
+                + currentdate.getSeconds() +":"
+                + currentdate.getMilliseconds();
+
+          if(skipLog!=1){
+          	logs.push({"user":sessionUserId,"datetime":datetime,"question":"width_1","value":width,"start_value":"false","end_value":"false"});
+          }
+       skipLog=0;
+    
+}
+
+}
+
+
+//Question 3
+	function drawQ9(){
+		$("#sliderDiv").remove();
+		$("#sliderDiv1").remove();
+		$("#increaseButton").hide();
+		$("#decreaseButton").hide();
+		d3.selectAll("svg").remove();
+		$("#responsetext").hide();
+		$("#questiontext").html("<p>Make the curve <b>50%</b> of its current value.</p>");
+		$("#interaction").text("Interaction: Drag the circle left or right to bend the line in the respective direction.");
+		$("#mycanvas").show();
+		(function() {
+
+  var canvas, ctx, code, point, point1, style, style1, drag = null, dPoint;
+
+  // define initial points
+  function Init(quadratic) {
+
+  	fakePoint = {
+      p1: { x:250, y:100 },
+      p2: { x:250, y:300 }
+    };
+
+  	point1 = {
+      p1: { x:250, y:100 },
+      p2: { x:250, y:300 }
+    };
+    
+    if (quadratic) {
+      point1.cp1 = { x: 308, y: 200 };
+    }
+    else {
+      point1.cp1 = { x: 150, y: 150 };
+      point1.cp2 = { x: 300, y: 150 };
+    }
+    
+    // default styles
+    style1 = {
+      curve:  { width: 2, color: "#ccc" },
+      cpline: { width: 1, color: "#ffffff" },
+      point1: { radius: 5, width: 1, color: "#ccc", fill: "rgba(255,255,255,0.5)", arc1: 0, arc2: 2 * Math.PI }
+    }
+
+    point = {
+      p1: { x:250, y:100 },
+      p2: { x:250, y:300 }
+    };
+
+    if (quadratic) {
+      point.cp1 = { x: 308, y: 200 };
+      fakePoint.cp1 = { x: 279, y: 200 };
+    }
+    else {
+      point.cp1 = { x: 150, y: 150 };
+      point.cp2 = { x: 350, y: 150 };
+    }
+    
+    // default styles
+    style = {
+      curve:  { width: 2, color: "#333" },
+      cpline: { width: 1, color: "#ffffff" },
+      point: { radius: 5, width: 1, color: "#333", fill: "rgba(255,255,255,0.5)", arc1: 0, arc2: 2 * Math.PI },
+      fakePoint: { radius: 5, width: 1, color: "#333", fill: "rgba(255,255,255,0.5)", arc1: 0, arc2: 2 * Math.PI },
+    }
+    
+    // line style defaults
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    
+    // event handlers
+    canvas.onmousedown = DragStart;
+    canvas.onmousemove = Dragging;
+    canvas.onmouseup = canvas.onmouseout = DragEnd;
+    DrawCanvas();
+  }
+  
+  
+  // draw canvas
+  function DrawCanvas() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // control lines
+    ctx.lineWidth = style1.cpline.width;
+    ctx.strokeStyle = style1.cpline.color;
+    ctx.beginPath();
+    ctx.moveTo(point1.p1.x, point1.p1.y);
+    ctx.lineTo(point1.cp1.x, point1.cp1.y);
+    if (point1.cp2) {
+      ctx.moveTo(point1.p2.x, point1.p2.y);
+      ctx.lineTo(point1.cp2.x, point1.cp2.y);
+    }
+    else {
+      ctx.lineTo(point1.p2.x, point1.p2.y);
+    }
+    ctx.stroke();
+    
+    // curve
+    ctx.lineWidth = style1.curve.width;
+    ctx.strokeStyle = style1.curve.color;
+    ctx.beginPath();
+    ctx.moveTo(point1.p1.x, point1.p1.y);
+    if (point1.cp2) {
+      ctx.bezierCurveTo(point1.cp1.x, point1.cp1.y, point1.cp2.x, point1.cp2.y, point1.p2.x, point1.p2.y);
+    }
+    else {
+      ctx.quadraticCurveTo(point1.cp1.x, point1.cp1.y, point1.p2.x, point1.p2.y);
+    }
+    ctx.stroke();
+
+    // control points    
+/*
+      ctx.lineWidth = style1.point1.width;
+      ctx.strokeStyle = style1.point1.color;
+      ctx.fillStyle = style1.point1.fill;
+      ctx.beginPath();
+      ctx.arc(point1.cp1.x, point1.cp1.y, style1.point1.radius, style1.point1.arc1, style1.point1.arc2, true);
+      ctx.fill();
+      ctx.stroke();
+
+*/
+
+    // control lines
+    ctx.lineWidth = style.cpline.width;
+    ctx.strokeStyle = style.cpline.color;
+    ctx.beginPath();
+    ctx.moveTo(point.p1.x, point.p1.y);
+    ctx.lineTo(point.cp1.x, point.cp1.y);
+    if (point.cp2) {
+      ctx.moveTo(point.p2.x, point.p2.y);
+      ctx.lineTo(point.cp2.x, point.cp2.y);
+    }
+    else {
+      ctx.lineTo(point.p2.x, point.p2.y);
+    }
+    ctx.stroke();
+    
+    // curve
+    ctx.lineWidth = style.curve.width;
+    ctx.strokeStyle = style.curve.color;
+    ctx.beginPath();
+    ctx.moveTo(point.p1.x, point.p1.y);
+    if (point.cp2) {
+      ctx.bezierCurveTo(point.cp1.x, point.cp1.y, point.cp2.x, point.cp2.y, point.p2.x, point.p2.y);
+    }
+    else {
+      ctx.quadraticCurveTo(point.cp1.x, point.cp1.y, point.p2.x, point.p2.y);
+    }
+    ctx.stroke();
+
+    // control points    
+
+      ctx.lineWidth = style.point.width;
+      ctx.strokeStyle = style.point.color;
+      ctx.fillStyle = style.point.fill;
+      ctx.beginPath();
+      ctx.arc(point.cp1.x, point.cp1.y, style.point.radius, style.point.arc1, style.point.arc2, true);
+      ctx.fill();
+      //ctx.stroke();
+
+    //fakePoint
+      ctx.lineWidth = style.fakePoint.width;
+      ctx.strokeStyle = style.fakePoint.color;
+      ctx.fillStyle = style.fakePoint.fill;
+      ctx.beginPath();
+      ctx.arc(fakePoint.cp1.x, fakePoint.cp1.y, style.fakePoint.radius, style.fakePoint.arc1, style.fakePoint.arc2, true);
+      ctx.fill();
+      ctx.stroke();
+    
+
+    //ShowCode();
+  }
+  
+  
+  // start dragging
+  function DragStart(e) {
+    e = MousePos(e);
+    var dx, dy;
+    for (var p in fakePoint) {
+      dx = fakePoint[p].x - e.x;
+      dy = fakePoint[p].y - e.y;
+      if ((dx * dx) + (dy * dy) < style.fakePoint.radius * style.fakePoint.radius) {
+        drag = p;
+        dPoint = e;
+        canvas.style.cursor = "move";
+        return;
+      }
+    }
+  }
+  
+  
+  // dragging
+  function Dragging(e) {
+    if (drag) {
+      e = MousePos(e);
+      if(e.x>=250){
+      fakePoint[drag].x += e.x - dPoint.x;
+	  fakePoint[drag].y = fakePoint.cp1.y;
+	  point[drag].x = 250+((fakePoint[drag].x-250)*2)
+
+      dPoint = e;
+      DrawCanvas();
+      }
+    }    
+  }
+  
+  
+  // end dragging
+  function DragEnd(e) {
+  	$("#nextbutton").show();
+    drag = null;
+    canvas.style.cursor = "default";
+    DrawCanvas();
+    var currentdate = new Date(); 
+	var datetime = "Last Sync: " + currentdate.getDate() + "/"
+		                + (currentdate.getMonth()+1)  + "/" 
+		                + currentdate.getFullYear() + " @ "  
+		                + currentdate.getHours() + ":"  
+		                + currentdate.getMinutes() + ":" 
+		                + currentdate.getSeconds() + ":" 
+		                + currentdate.getMilliseconds();
+	//250,100
+    //250,300
+    //console.log(point.cp1.x-250)
+    var AB = Math.sqrt(Math.pow(point.cp1.x-250,2)+ Math.pow(point.cp1.y-100,2));    
+    var BC = Math.sqrt(Math.pow(point.cp1.x-250,2)+ Math.pow(point.cp1.y-300,2)); 
+    var AC = Math.sqrt(Math.pow(250-250,2)+ Math.pow(300-100,2));
+    //console.log();
+    var radians = Math.acos((BC*BC+AB*AB-AC*AC)/(2*BC*AB));
+    var degrees = radians * (180/3.141592653589793);
+    //console.log(parseInt(180-degrees))
+    //console.log(point.cp1.x,point.cp1.y)
+
+    logs.push({"user":sessionUserId,"datetime":datetime,"question":"line_shape_1","value":point.cp1.x+","+point.cp1.y+","+point.p2.x+","+point.p2.y,"start_value":"false","end_value":"false"});
+  }
+
+  
+  // event parser
+  function MousePos(event) {
+    event = (event ? event : window.event);
+    return {
+      x: event.pageX - canvas.offsetLeft,
+      y: event.pageY - canvas.offsetTop
+    }
+  }
+  // start
+  canvas = document.getElementById("mycanvas");
+  code = document.getElementById("code");
+  if (canvas.getContext) {
+    ctx = canvas.getContext("2d");
+    Init(canvas.className == "quadratic");
+  }
+  
+})(); 
+	}
+
+var prevY = -1;
+
+function drawQ10(){
+	$("#mycanvas").hide();
+	$("#sliderDiv").remove();
+	$("#sliderDiv1").remove();
+	d3.selectAll("svg").remove();
+	$("#responsetext").hide();
+	//$("#viz").css("width","50%");
+	//$("#vizcontainer").append("<div style='width:50%' id='staticTextureBox'></div>")
+	//$("#increaseButton").show();
+	//$("#decreaseButton").show();
+	
+	$("#questiontext").html("<p>Make the texture <b>50%</b> of its current value. (The rectangle on the right is only for reference and will always indicate your starting texture value.)</p>");
+	$("#interaction").text("Interaction: Click and drag upwards on the left rectangle to make the texture denser, click and drag downwards on the left rectangle to make the texture less dense.");
+
+	curSize = 40;
+	var svg = d3.select("#viz")
+		  .append("svg")
+		  .attr("width",900)
+		  .attr("height",300);
+
+
+		var t = textures.lines()
+			.orientation("2/8","6/8")
+		    .size(curSize)
+		    .strokeWidth(1);
+
+		svg.call(t);		
+
+		svg.append("rect")
+			.attr("class","scrollableRect")
+			.attr("width",200)
+			.attr("height",200)
+			.attr("x",250)
+			.attr("y",50)
+		  .style("fill", t.url())		  
+		  .on("mouseover",function(){
+		  	curSize-=1
+		  	increase()
+		  });
+		  /*.call(d3.behavior.drag().on('drag', function() {
+		  	prevY = d3.event.y;
+		  	if(d3.event.y<prevY){		  		
+		  		decrease()			  		
+		  	}else{
+		  		increase()
+		  	}
+		  }));*/
+		  /*.on("click",function(){
+		  	console.log("hello")
+		  	increase()
+		  });*/
+
+
+	/*var svg1 = d3.select("#staticTextureBox")
+		  .append("svg")
+		  .attr("width",300)
+		  .attr("height",300);*/
+
+
+		var t1 = textures.lines()
+			.orientation("2/8","6/8")
+		    .size(40)
+		    .strokeWidth(1);
+
+		svg.call(t1);
+
+		svg.append("rect")
+			.attr("width",200)
+			.attr("height",200)
+			.attr("x",500)
+			.attr("y",50)
+		  .style("fill", t1.url());  	
+
+}
+/*
+var doScroll = function (e) {
+    // cross-browser wheel delta
+    e = window.event || e;
+    var delta = Math.max(-1, Math.min(1, (e.wheelDelta || -e.detail)));
+
+    // Do something with `delta`
+    //document.body.innerHTML = delta;
+    //console.log(delta)
+    if(questionNumber==19){
+    e.preventDefault();
+    if(delta==-1){
+    	increase()
+    }else{
+    	decrease()
+    }
+
+	}
+    
+};
+
+	if (window.addEventListener) {
+	    window.addEventListener("mousewheel", doScroll, false);
+	    window.addEventListener("DOMMouseScroll", doScroll, false);
+	} else {
+	    window.attachEvent("onmousewheel", increase);
+	}
+
+*/
+
+function increase(){
+  		d3.select("#viz").selectAll("svg").remove();  		
+  		$("#nextbutton").show();
+  		curSize+=1;		
+		var svg = d3.select("#viz")
+		  .append("svg")
+		  .attr("width",900)
+		  .attr("height",300);
+
+
+		var t = textures.lines()
+			.orientation("2/8","6/8")
+		    .size(curSize)
+		    .strokeWidth(1);
+
+		svg.call(t);
+
+		svg.append("rect")
+			.attr("width",200)
+			.attr("height",200)
+			.attr("x",250)
+			.attr("y",50)
+		  .style("fill", t.url())
+		  .call(d3.behavior.drag().on('drag', function() {
+		  	//console.log(prevY,d3.event.y)
+		  	if(d3.event.y<prevY){
+		  		prevY = d3.event.y;
+		  		decrease()
+		  	}else{
+		  		prevY = d3.event.y;
+		  		increase()
+		  	}
+		  }));
+
+		var currentdate = new Date(); 
+	var datetime = "Last Sync: " + currentdate.getDate() + "/"
+		                + (currentdate.getMonth()+1)  + "/" 
+		                + currentdate.getFullYear() + " @ "  
+		                + currentdate.getHours() + ":"  
+		                + currentdate.getMinutes() + ":" 
+		                + currentdate.getSeconds() + ":" 
+		                + currentdate.getMilliseconds();
+
+    logs.push({"user":sessionUserId,"datetime":datetime,"question":"texture_1","value":curSize,"start_value":"false","end_value":"false"});
+    	var t1 = textures.lines()
+			.orientation("2/8","6/8")
+		    .size(40)
+		    .strokeWidth(1);
+
+		svg.call(t1);
+
+		svg.append("rect")
+			.attr("width",200)
+			.attr("height",200)
+			.attr("x",500)
+			.attr("y",50)
+		  .style("fill", t1.url());  
+	}		
+	function decrease(){		
+		d3.select("#viz").selectAll("svg").remove();
+		$("#nextbutton").show();
+		if(curSize>=3){
+			curSize-=1;		
+		}
+		var svg = d3.select("#viz")
+		  .append("svg")
+		  .attr("width",900)
+		  .attr("height",300);
+
+
+		var t = textures.lines()
+			.orientation("2/8","6/8")
+		    .size(curSize)
+		    .strokeWidth(1);
+
+		svg.call(t);
+
+		svg.append("rect")
+			.attr("width",200)
+			.attr("height",200)
+			.attr("x",250)
+			.attr("y",50)
+		  .style("fill", t.url())
+		  .call(d3.behavior.drag().on('drag', function() {
+		  	//console.log(prevY,d3.event.y)
+		  	if(d3.event.y<prevY){
+		  		prevY = d3.event.y;		  	
+		  		decrease()
+		  	}else{
+		  		prevY = d3.event.y;		  	
+		  		increase()
+		  	}
+		  }));
+
+		var currentdate = new Date(); 
+	var datetime = "Last Sync: " + currentdate.getDate() + "/"
+		                + (currentdate.getMonth()+1)  + "/" 
+		                + currentdate.getFullYear() + " @ "  
+		                + currentdate.getHours() + ":"  
+		                + currentdate.getMinutes() + ":" 
+		                + currentdate.getSeconds() + ":" 
+		                + currentdate.getMilliseconds();
+
+    logs.push({"user":sessionUserId,"datetime":datetime,"question":"texture_1","value":curSize,"start_value":"false","end_value":"false"});
+    var t1 = textures.lines()
+			.orientation("2/8","6/8")
+		    .size(40)
+		    .strokeWidth(1);
+
+		svg.call(t1);
+
+		svg.append("rect")
+			.attr("width",200)
+			.attr("height",200)
+			.attr("x",500)
+			.attr("y",50)
+		  .style("fill", t1.url());  
+	}	
+
+
+function drawQ11(){
+	$("#mycanvas").hide();
+	$("#sliderDiv").remove();
+	$("#sliderDiv1").remove();
+	$("#increaseButton").hide();
+	$("#decreaseButton").hide();
+	d3.selectAll("svg").remove();
+	$("#responsetext").hide();
+	$("#questiontext").html("<p>Make the slider box's position <b>50%</b> of its current value.</p>");
+	$("#interaction").text("Interaction: Drag the slider box up or down to change its position.");
+	var x = document.body.offsetWidth/2
+	$('#viz').append("<div id=\"sliderDiv1\" align='center' style=\"width:10px;height:350px;margin-left: "+x+"px;margin-right: auto;position:absolute;\"></div>");
+	$('#viz').append("<div id=\"sliderDiv\" align='center' style=\"width:10px;height:350px;margin-left: "+x+"px;margin-right: auto;z-index:10;\"></div>");
+	//.axis(d3.svg.axis().orient("bottom").ticks("1"))
+	var labels = ["min","max"];
+	d3.select('#sliderDiv1').call(d3.slider().value(50).orientation("vertical")).style("opacity",0.5);
+	//d3.select('#sliderDiv').call(d3.slider().value(50).axis(d3.svg.axis().orient("bottom").ticks("1")).on("slide", function(evt, value) {
+	d3.select('#sliderDiv').call(d3.slider().value(50).axis(d3.svg.axis().orient("left").ticks("1")).orientation("vertical").on("slide", function(evt, value) {
+	  console.log(value)
+	  $("#nextbutton").show();
+	  var currentdate = new Date(); 
+	var datetime = "Last Sync: " + currentdate.getDate() + "/"
+                + (currentdate.getMonth()+1)  + "/" 
+                + currentdate.getFullYear() + " @ "  
+                + currentdate.getHours() + ":"  
+                + currentdate.getMinutes() + ":" 
+                + currentdate.getSeconds() + ":" 
+		        + currentdate.getMilliseconds();
+		        console.log(value)
+	  logs.push({"user":sessionUserId,"datetime":datetime,"question":"slider_1","value":value,"start_value":"false","end_value":"false"});//console.log(value)
+    }));
+    d3.select(".d3-slider-axis.d3-slider-axis-left").selectAll("text").each(function(d){
+    	//console.log(d)
+    	if(d=="100"){
+    		d3.select(this).text("low")
+    	}else if(d=="0"){
+    		d3.select(this).text("high")
+    	}
+    })
+}
+
+
+function drawQ12(){
+		$("#mycanvas").hide();
+		$("#sliderDiv").remove();
+		$("#sliderDiv1").remove();
+		$("#increaseButton").hide();
+		$("#decreaseButton").hide();
+		d3.selectAll("svg").remove();
+		$("#responsetext").hide();
+		$("#questiontext").html("<p>Move the circle such that the distance from the target (gray rectangle on the right) is <b>50%</b> of its current value.</p>");
+		$("#interaction").text("Interaction: Drag the black circle either left or right to change its position.");
+
+		var svg, frameGroup, dragRect, dragBarTop, dragBarRight, rotateHandler,
+	    x = 200, y = 250,
+	    angle = 0,
+	    width = 200, height = 100,
+	    bar = 6,
+	    that = this;
+
+	svg = d3.select('#viz').append('svg').attr({
+	    width: 1000,
+	    height: 700
+	});
+	svg.append("rect")
+	       .attr("x",0)
+	       .attr("y",0)
+	       .attr("width",1000)
+	       .attr("height",700)
+	       .attr("fill","white")
+	       .style("stroke","black");
+
+
+	frameGroup = svg.append('g')
+	.attr({
+	    'class': 'dummy frameGroup'
+	});
+
+	targetRect = frameGroup.append('rect')
+	.attr('class', 'targetRect')
+	.attr('fill', 'black')
+	.style('fill-opacity', '0.4')
+	.attr("x",470)
+	.attr("y",50)
+	.attr("width",50)
+	.attr("height",5);
+
+			frameGroup.append('circle')
+					  .attr('class','dummy dragCircleRightStatic')				  
+					  .attr('r',8)
+					  .attr('cx',493)
+					  .attr('cy',255)
+					  .style('fill','black')
+					  .style('fill-opacity',0.2);
+
+	dragCircleRight = frameGroup.append('circle')
+	.attr('class', 'dummy dragCircleRight')
+	.attr('r',8)
+	.attr('cx',x+93)
+	.attr('cy',5)
+	.attr('fill', 'black')
+	.attr('cursor', 'ns-resize')
+	.call(d3.behavior.drag().on('drag', function() {
+	    //x = x + d3.event.dx;
+	    y = y + d3.event.dy;
+	    $("#nextbutton").show();
+	    positionate();
+	}));
+
+
+
+	var skipLog=1;
+	positionate();
+
+	function positionate() {
+	    var rotate, translate;
+	    
+	    //rotate = ' rotate(' + angle + ', ' + (-1 * width / 2) + ', ' + (height / 2) + ')';
+	    translate = 'translate(' + (x) + ',' + y + ')';
+	    dragCircleRight.attr('transform', translate );
+	    //console.log(x)
+	    var currentdate = new Date(); 
+		var datetime = "Last Sync: " + currentdate.getDate() + "/"
+	                + (currentdate.getMonth()+1)  + "/" 
+	                + currentdate.getFullYear() + " @ "  
+	                + currentdate.getHours() + ":"  
+	                + currentdate.getMinutes() + ":" 
+	                + currentdate.getSeconds() +":"
+	                + currentdate.getMilliseconds();
+
+	               /* console.log(900-(x+200))
+	                console.log("x="+x)*/
+	    console.log(-1*(50-y))
+	    if(skipLog!=1){
+	    	logs.push({"user":sessionUserId,"datetime":datetime,"question":"distance_1","value":-1*(50-y),"start_value":"false","end_value":"false"});
+	    }
+	    skipLog=0;    
+	}
+}
+
+
+//template for new function
+function drawQx(){
+	$("#mycanvas").hide();
+	$("#sliderDiv").remove();
+	$("#sliderDiv1").remove();
+	d3.selectAll("svg").remove();
+	$("#questiontext").text("Make the width 200% of its current value.");
+	$("#interaction").text("Interaction: Click and drag the black dark gray bar on the right to adjust the width of the rectangle.");
+}
+
+function drawQ1Ans(userEndValue){
+				$("#mycanvas").hide();
+				$("#sliderDiv").remove();
+				$("#sliderDiv1").remove();
+				$("#increaseButton").hide();
+				$("#decreaseButton").hide();
+				$("#nextbutton").show();
+				$("#responsetext").html("<span style='color:green'>Expected response</span>&nbsp;&nbsp;&nbsp;&nbsp;<span style='color:blue'>Your response</span>");
+				$("#responsetext").show();
+				d3.selectAll("svg").remove();
+				var svg, frameGroup, dragRect, dragBarTop, dragBarRight, rotateHandler,
+			    x = 300, y = 400,
+			    angle = 0,
+			    width = 200, height = 100,
+			    bar = 6,
+			    that = this;
+				
+				var svg = d3.select("#viz")
+		  .append("svg")
+		  .attr("width",900)
+		  .attr("height",550);
+
+		  svg.append("rect")
+			.attr("width",200)
+			.attr("height",userEndValue)
+			.attr("x",500)
+			.attr("y",300)
+		  .style("fill","blue")
+		  .style('fill-opacity',0.5);
+
+		svg.append("rect")
+			.attr("class","scrollableRect")
+			.attr("width",200)
+			.attr("height",150)
+			.attr("x",250)
+			.attr("y",(300+userEndValue)-150)
+		  .style("fill","green")
+		  .style('fill-opacity',0.5);		
+}
+
+
+function drawQ2Ans(userEndValue){
+	//console.log("here")
+				$("#mycanvas").hide();
+				$("#sliderDiv").remove();
+				$("#sliderDiv1").remove();
+				$("#increaseButton").hide();
+				$("#decreaseButton").hide();
+				$("#nextbutton").show();
+				$("#responsetext").html("<span style='color:green'>Expected response</span>&nbsp;&nbsp;&nbsp;&nbsp;<span style='color:blue'>Your response</span>");
+				$("#responsetext").show();
+				d3.selectAll("svg").remove();
+				var svg, frameGroup, dragRect, dragBarTop, dragBarRight, rotateHandler,
+			    x = 300, y = 400,
+			    angle = 0,
+			    width = 200, height = 100,
+			    bar = 6,
+			    that = this;
+				
+				var svg, frameGroup, dragRect, dragBarTop, dragBarRight, rotateHandler,
+    x = 200, y = 100,
+    angle = 0,
+    width = 200, height = 100,
+    bar = 6,
+    that = this;
+
+svg = d3.select('#viz').append('svg').attr({
+    width: 1000,
+    height: 300
+});
+svg.append("rect")
+       .attr("x",0)
+       .attr("y",0)
+       .attr("width",1000)
+       .attr("height",300)
+       .attr("fill","white")
+       .style("stroke","black");
+
+
+frameGroup = svg.append('g')
+.attr({
+    'class': 'dummy frameGroup'
+});
+
+targetRect = frameGroup.append('rect')
+.attr('class', 'targetRect')
+.attr('fill', 'black')
+.style('fill-opacity', '0.4')
+.attr("x",900)
+.attr("y",100)
+.attr("width",5)
+.attr("height",50);
+
+		frameGroup.append('circle')
+				  .attr('class','dummy dragCircleRightStatic')				  
+				  .attr('r',8)
+				  .attr('cx',650)
+				  .attr('cy',125)
+				  .style('fill','green')
+				  .style('fill-opacity',0.5);
+
+		frameGroup.append('circle')
+				  .attr('class','dummy dragCircleRightStatic')				  
+				  .attr('r',8)
+				  .attr('cx',userEndValue+x)
+				  .attr('cy',125)
+				  .style('fill','blue')
+				  .style('fill-opacity',0.5);			
+}
+
+function drawQ3Ans(userEndValue){
+
+	var userX = parseInt(userEndValue.split(",")[0]);
+	var userY = parseInt(userEndValue.split(",")[1]);
+
+	$("#nextbutton").show();
+	$("#sliderDiv").remove();
+		$("#sliderDiv1").remove();
+		$("#increaseButton").hide();
+		$("#decreaseButton").hide();
+		d3.selectAll("svg").remove();
+		$("#questiontext").text("Make the curve 50% of its current value.");
+		$("#interaction").text("Interaction: Drag the circle upwards or downwards to bend the line in the respective direction.");
+		$("#responsetext").html("<span style='color:green'>Expected response</span>&nbsp;&nbsp;&nbsp;&nbsp;<span style='color:blue'>Your response</span>");
+				$("#responsetext").show();
+		$("#mycanvas").show();
+		(function() {
+
+  var canvas, ctx, code, point, point1, style,style1, drag = null, dPoint;
+
+  // define initial points
+  function Init(quadratic) {
+  	
+    point1 = {
+      p1: { x:100, y:250 },
+      p2: { x:400, y:250 }
+    };
+    
+    if (quadratic) {
+      point1.cp1 = { x: 250, y: 226 };      
+    }
+    else {
+      point1.cp1 = { x: 150, y: 150 };
+      point1.cp2 = { x: 350, y: 150 };
+    }
+    // default styles
+    style1 = {
+      curve:  { width: 2, color: "green" },
+      cpline: { width: 1, color: "#ffffff" },
+      point1: { radius: 5, width: 1, color: "#ccc", fill: "rgba(255,255,255,0.5)", arc1: 0, arc2: 2 * Math.PI },
+    }
+    
+    point = {
+      p1: { x:100, y:250 },
+      p2: { x:400, y:250 }
+    };
+    
+    if (quadratic) {
+      point.cp1 = { x: userX, y: userY };      
+    }
+    else {
+      point.cp1 = { x: 150, y: 150 };
+      point.cp2 = { x: 350, y: 150 };
+    }
+    // default styles
+    style = {
+      curve:  { width: 2, color: "blue" },
+      cpline: { width: 1, color: "#ffffff" },
+      point: { radius: 5, width: 1, color: "#333", fill: "rgba(255,255,255,0.5)", arc1: 0, arc2: 2 * Math.PI },
+    }
+
+    // line style defaults
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    
+    // event handlers
+    canvas.onmousedown = DragStart;
+    canvas.onmousemove = Dragging;
+    canvas.onmouseup = canvas.onmouseout = DragEnd;
+    DrawCanvas();
+  }
+  
+  
+  // draw canvas
+  function DrawCanvas() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // control lines
+    ctx.lineWidth = style1.cpline.width;
+    ctx.strokeStyle = style1.cpline.color;
+    ctx.beginPath();
+    ctx.moveTo(point1.p1.x, point1.p1.y);
+    
+    ctx.lineTo(point1.cp1.x, point1.cp1.y);
+    ctx.lineTo(point1.cp1.x, point1.cp1.y);
+    if (point1.cp2) {
+      ctx.moveTo(point1.p2.x, point1.p2.y);
+      ctx.lineTo(point1.cp2.x, point1.cp2.y);
+    }
+    else {
+      ctx.lineTo(point1.p2.x, point1.p2.y);
+    }
+    ctx.stroke();
+    
+    // curve
+    ctx.lineWidth = style1.curve.width;
+    ctx.strokeStyle = style1.curve.color;
+    ctx.beginPath();
+    ctx.moveTo(point1.p1.x, point1.p1.y);
+    if (point1.cp2) {
+      ctx.bezierCurveTo(point1.cp1.x, point1.cp1.y, point1.cp2.x, point1.cp2.y, point1.p2.x, point1.p2.y);
+    }
+    else {
+      ctx.quadraticCurveTo(point1.cp1.x, point1.cp1.y, point1.p2.x, point1.p2.y);
+    }
+    ctx.stroke();
+
+    // control points    
+    /*
+    ctx.lineWidth = style1.point1.width;
+    ctx.strokeStyle = style1.point1.color;
+    ctx.fillStyle = style1.point1.fill;
+    ctx.beginPath();
+    ctx.arc(point1.cp1.x, point1.cp1.y, style1.point1.radius, style1.point1.arc1, style1.point1.arc2, true);
+    ctx.fill();
+    ctx.stroke();
+	*/
+    // control lines
+    ctx.lineWidth = style.cpline.width;
+    ctx.strokeStyle = style.cpline.color;
+    ctx.beginPath();
+    ctx.moveTo(point.p1.x, point.p1.y);
+    
+    ctx.lineTo(point.cp1.x, point.cp1.y);
+    ctx.lineTo(point.cp1.x, point.cp1.y);
+    if (point.cp2) {
+      ctx.moveTo(point.p2.x, point.p2.y);
+      ctx.lineTo(point.cp2.x, point.cp2.y);
+    }
+    else {
+      ctx.lineTo(point.p2.x, point.p2.y);
+    }
+    ctx.stroke();
+    
+    // curve
+    ctx.lineWidth = style.curve.width;
+    ctx.strokeStyle = style.curve.color;
+    ctx.beginPath();
+    ctx.moveTo(point.p1.x, point.p1.y);
+    if (point.cp2) {
+      ctx.bezierCurveTo(point.cp1.x, point.cp1.y, point.cp2.x, point.cp2.y, point.p2.x, point.p2.y);
+    }
+    else {
+      ctx.quadraticCurveTo(point.cp1.x, point.cp1.y, point.p2.x, point.p2.y);
+    }
+    ctx.stroke();
+
+    // control points    
+    /*
+      ctx.lineWidth = style.point.width;
+      ctx.strokeStyle = style.point.color;
+      ctx.fillStyle = style.point.fill;
+      ctx.beginPath();
+      ctx.arc(point.cp1.x, point.cp1.y, style.point.radius, style.point.arc1, style.point.arc2, true);
+      ctx.fill();
+      ctx.stroke();
+    */
+
+    ShowCode();
+  }
+  
+  
+  // show canvas code
+  function ShowCode() {
+    if (code) {
+      code.firstChild.nodeValue = 
+        "canvas = document.getElementById(\"mycanvas\");\n"+
+        "ctx = canvas.getContext(\"2d\")\n"+
+        "ctx.lineWidth = " + style.curve.width +
+        ";\nctx.strokeStyle = \"" + style.curve.color +
+        "\";\nctx.beginPath();\n" +
+        "ctx.moveTo(" + point.p1.x + ", " + point.p1.y +");\n" +
+        (point.cp2 ? 
+          "ctx.bezierCurveTo("+point.cp1.x+", "+point.cp1.y+", "+point.cp2.x+", "+point.cp2.y+", "+point.p2.x+", "+point.p2.y+");" :
+          "ctx.quadraticCurveTo("+point.cp1.x+", "+point.cp1.y+", "+point.p2.x+", "+point.p2.y+");"
+        ) +
+        "\nctx.stroke();"
+      ;
+    }
+  }
+  
+  
+  // start dragging
+  function DragStart(e) {
+    e = MousePos(e);
+    var dx, dy;
+    for (var p in point) {
+      dx = point[p].x - e.x;
+      dy = point[p].y - e.y;
+      if ((dx * dx) + (dy * dy) < style.point.radius * style.point.radius) {
+        drag = p;
+        dPoint = e;
+        canvas.style.cursor = "move";
+        return;
+      }
+    }
+  }
+  
+  
+  // dragging
+  function Dragging(e) {
+    if (drag) {
+      e = MousePos(e);
+      point[drag].x = point.cp1.x;//e.x - dPoint.x;
+      point[drag].y += e.y - dPoint.y;
+      dPoint = e;
+      DrawCanvas();
+    }    
+  }
+  
+  
+  // end dragging
+  function DragEnd(e) {
+  	$("#nextbutton").show();
+    drag = null;
+    canvas.style.cursor = "default";
+    DrawCanvas();
+    var currentdate = new Date(); 
+	var datetime = "Last Sync: " + currentdate.getDate() + "/"
+		                + (currentdate.getMonth()+1)  + "/" 
+		                + currentdate.getFullYear() + " @ "  
+		                + currentdate.getHours() + ":"  
+		                + currentdate.getMinutes() + ":" 
+		                + currentdate.getSeconds() + ":" 
+		                + currentdate.getMilliseconds();
+
+	//console.log(-1*(point.cp1.y-250))
+//100,250
+//400,250
+//250,200
+	/*var angle1 = Math.atan2(point.cp1.y - 250,point.cp1.x - 100);
+    var angle2 = Math.atan2(point.cp1.y - 250,point.cp1.x - 400);*/
+    var AB = Math.sqrt(Math.pow(point.cp1.x-100,2)+ Math.pow(point.cp1.y-250,2));    
+    var BC = Math.sqrt(Math.pow(point.cp1.x-400,2)+ Math.pow(point.cp1.y-250,2)); 
+    var AC = Math.sqrt(Math.pow(400-100,2)+ Math.pow(250-250,2));
+    //console.log();
+    var radians = Math.acos((BC*BC+AB*AB-AC*AC)/(2*BC*AB));
+    var degrees = radians * (180/3.141592653589793);
+    //console.log(parseInt(180-degrees))
+    //console.log(-1*(point.cp1.y-250))
+    //console.log(point.cp1.x,point.cp1.y)    
+//console.log(point.cp1.y,point.cp1.x)
+    logs.push({"user":sessionUserId,"datetime":datetime,"question":"line_shape_1","value":"("+point.cp1.x+","+point.cp1.y+","+point.p2.x+","+point.p2.y+")","start_value":"false","end_value":"false"});
+  }
+
+  
+  // event parser
+  function MousePos(event) {
+    event = (event ? event : window.event);
+    return {
+      x: event.pageX - canvas.offsetLeft,
+      y: event.pageY - canvas.offsetTop
+    }
+  }
+  // start
+  canvas = document.getElementById("mycanvas");
+  code = document.getElementById("code");
+  if (canvas.getContext) {
+    ctx = canvas.getContext("2d");
+    Init(canvas.className == "quadratic");
+  }
+  
+})();
+}
+
+function drawQ4Ans(userEndValue){
+//480,146
+	$("#mycanvas").hide();
+		$("#sliderDiv").remove();
+		$("#sliderDiv1").remove();
+		$("#increaseButton").hide();
+		$("#decreaseButton").hide();
+		$("#nextbutton").show();
+		$("#responsetext").html("<span style='color:green'>Expected response</span>&nbsp;&nbsp;&nbsp;&nbsp;<span style='color:blue'>Your response</span>");
+				$("#responsetext").show();
+		d3.selectAll("svg").remove();		
+		var svg, frameGroup, dragRect, dragBarTop, dragBarRight, rotateHandler,
+    x1 = 300, y1 = 250,
+    x2 = 500, y2 = 200
+    angle = 0,
+    width = 200, height = 5,
+    bar = 6,
+    that = this;
+
+svg = d3.select('#viz').append('svg').attr({
+    width: 800,
+    height: 500
+});
+svg.append("rect")
+       .attr("x",0)
+       .attr("y",0)
+       .attr("width",800)
+       .attr("height",500)
+       .attr("fill","white")
+       .style("stroke","black");
+
+dragLine = svg.append("line")
+					 .attr("class", "dragLine")
+					 .attr("x1",x1)
+					 .attr("y1",y1)
+					 .attr("x2",480-100)
+					 .attr("y2",146)
+					 .style("stroke","green")
+					 .style("stroke-width",1);
+
+staticLine = svg.append("line")
+					 .attr("class", "dragLine1")
+					 .attr("x1",x1)
+					 .attr("y1",y1)
+					 .attr("x2",x1+200)
+					 .attr("y2",y1)
+					 .style("stroke","green")
+					 .style("stroke-width",1);
+//console.log(userEndValue)
+var userX = parseInt(userEndValue.split(",")[0])
+var userY = parseInt(userEndValue.split(",")[1])
+
+svg.append("line")
+					 .attr("class", "dragLine")
+					 .attr("x1",x1)
+					 .attr("y1",y1)
+					 .attr("x2",userX-100)
+					 .attr("y2",userY)
+					 .style("stroke","blue")
+					 .style("stroke-width",1);
+
+svg.append("line")
+					 .attr("class", "dragLine1")
+					 .attr("x1",x1)
+					 .attr("y1",y1)
+					 .attr("x2",x1+200)
+					 .attr("y2",y1)
+					 .style("stroke","blue")
+					 .style("stroke-width",1);
+
+}
+
+function drawQ5Ans(userEndValue){
+	$("#mycanvas").hide();
+	$("#sliderDiv").remove();
+	$("#sliderDiv1").remove();
+	$("#increaseButton").hide();
+	$("#decreaseButton").hide();
+	$("#nextbutton").show();
+	$("#responsetext").html("<span style='color:green'>Expected response</span>&nbsp;&nbsp;&nbsp;&nbsp;<span style='color:blue'>Your response</span>");
+				$("#responsetext").show();
+	d3.selectAll("svg").remove();
+	var svg, frameGroup, dragRect, dragBarTop, dragBarRight, rotateHandler,
+    x = 500, y = 325,
+    angle = 0,
+    r = 40//, height = 5,
+    dragR = 6,
+    that = this;
+
+    svg = d3.select('#viz').append('svg').attr({
+        width: 1000,
+        height: 650
+    });
+
+    svg.append("rect")
+       .attr("x",0)
+       .attr("y",0)
+       .attr("width",1000)
+       .attr("height",650)
+       .attr("fill","white")
+       .style("stroke","black");
+
+    svg.append("circle")
+       .attr("class","staticCircle")
+       .attr("cx",350)
+       .attr("cy",y)
+       .attr("r",60)
+       .attr("fill","green")
+       .style('fill-opacity',0.5);
+
+    svg.append("circle")
+       .attr("class","vizelement")
+       .attr("cx",700)
+       .attr("cy",y)
+       .attr("r",userEndValue)
+       .attr("fill","blue")
+       .style("fill-opacity",0.5);
+}
+
+
+function drawQ6Ans(userEndValue){
+	$("#mycanvas").hide();
+	$("#sliderDiv").remove();
+	$("#sliderDiv1").remove();
+	$("#increaseButton").hide();
+	$("#decreaseButton").hide();
+	$("#nextbutton").show();
+	$("#responsetext").html("<span style='color:green'>Expected response</span>&nbsp;&nbsp;&nbsp;&nbsp;<span style='color:blue'>Your response</span>");
+				$("#responsetext").show();
+	d3.selectAll("svg").remove();
+	var x = document.body.offsetWidth/4;
+	$('#viz').append("<div id=\"sliderDiv1\" align='center' style=\"width:800px;margin-left: "+x+"px;margin-right: auto;position:absolute;\"></div>");
+	$('#viz').append("<div id=\"sliderDiv\" align='center' style=\"width:800px;margin-left: "+x+"px;margin-right: auto;z-index:10;\"></div>");
+	/*$('#viz').append("<div id=\"sliderDiv1\" style=\"width:800px;margin-left: 418px;margin-right: auto;position:absolute;\"></div>");
+	$('#viz').append("<div id=\"sliderDiv\" style=\"width:800px;margin-left: 418px;margin-right: auto;z-index:10;\"></div>");*/
+
+	d3.select('#sliderDiv1').call(d3.slider().value(25)).style("opacity",0.5);	
+	d3.select('#sliderDiv').call(d3.slider().value(userEndValue)).style("opacity",0.5);	
+
+	d3.select('#sliderDiv1').select("a").style("background","green");
+	d3.select('#sliderDiv').select("a").style("background","blue");
+}
+
+function drawQ7Ans(userEndValue){
+	$("#mycanvas").hide();
+	$("#sliderDiv").remove();
+	$("#sliderDiv1").remove();
+	$("#increaseButton").hide();
+	$("#decreaseButton").hide();
+	$("#nextbutton").show();
+	$("#responsetext").html("<span style='color:green'>Expected response</span>&nbsp;&nbsp;&nbsp;&nbsp;<span style='color:blue'>Your response</span>");
+				$("#responsetext").show();
+	d3.selectAll("svg").remove();
+	
+	var svg, frameGroup, dragRect, dragBarTop, dragBarRight, rotateHandler,
+    x = 400, y = 150,
+    width = 200, height = 200,
+    dragR = 6,
+    that = this;
+
+    svg = d3.select('#viz').append('svg').attr({
+        width: 1500,
+        height: 700
+    });
+    svg.append("rect")
+       .attr("x",0)
+       .attr("y",0)
+       .attr("width",1500)
+       .attr("height",700)
+       .attr("fill","white")
+       .style("stroke","black");
+
+
+    var side = Math.sqrt(userEndValue);
+
+    svg.append("rect")
+       .attr("class","staticSquare")
+       .attr("x",400)
+       .attr("y",y)
+       .attr("width",300)
+       .attr("height",300)
+       .attr("fill","green")
+       .style('fill-opacity',0.5);
+
+    svg.append("rect")
+       .attr("class","vizelement")
+       .attr("x",800)
+       .attr("y",y)
+       .attr("width",side)
+       .attr("height",side)
+       .attr("fill","blue")
+       .style('fill-opacity',0.5);
+}
+
+
+function drawQ8Ans(userEndValue){
+	$("#mycanvas").hide();
+	$("#sliderDiv").remove();
+	$("#sliderDiv1").remove();
+	$("#increaseButton").hide();
+	$("#decreaseButton").hide();
+	$("#nextbutton").show();
+	$("#responsetext").html("<span style='color:green'>Expected response</span>&nbsp;&nbsp;&nbsp;&nbsp;<span style='color:blue'>Your response</span>");
+				$("#responsetext").show();
+	d3.selectAll("svg").remove();
+	
+	var svg, frameGroup, dragRect, dragBarTop, dragBarRight, rotateHandler,
+    x = 300, y = 100,
+    angle = 0,
+    width = 200, height = 100,
+    bar = 6,
+    that = this;
+
+	svg = d3.select('#viz').append('svg').attr({
+	    width: 1200,
+	    height: 300
+	});
+	
+	svg.append("rect")
+	       .attr("x",0)
+	       .attr("y",0)
+	       .attr("width",1200)
+	       .attr("height",300)
+	       .attr("fill","white")
+	       .style("stroke","black");
+
+	svg.append("rect")
+	   .attr("x",150)
+	   .attr("y",y)
+	   .attr("width",400)
+	   .attr("height",100)
+	   .attr("fill","green")
+	   .style('fill-opacity',0.5);
+
+	svg.append("rect")
+	   .attr("x",600)
+	   .attr("y",y)
+	   .attr("width",userEndValue)
+	   .attr("height",100)
+	   .attr("fill","blue")
+	   .style('fill-opacity',0.5);
+}
+
+
+function drawQ9Ans(userEndValue){
+	var userX = parseInt(userEndValue.split(",")[0]);
+	var userY = parseInt(userEndValue.split(",")[1]);
+	$("#nextbutton").show();
+	$("#sliderDiv").remove();
+		$("#sliderDiv1").remove();
+		$("#increaseButton").hide();
+		$("#decreaseButton").hide();
+		d3.selectAll("svg").remove();
+		$("#responsetext").html("<span style='color:green'>Expected response</span>&nbsp;&nbsp;&nbsp;&nbsp;<span style='color:blue'>Your response</span>");
+				$("#responsetext").show();
+		$("#mycanvas").show();
+		(function() {
+
+  var canvas, ctx, code, point, point1, style, style1, drag = null, dPoint;
+
+  // define initial points
+  function Init(quadratic) {
+
+  	point1 = {
+      p1: { x:250, y:100 },
+      p2: { x:250, y:300 }
+    };
+    
+    if (quadratic) {
+      point1.cp1 = { x: 277, y: 200 };
+    }
+    else {
+      point1.cp1 = { x: 150, y: 150 };
+      point1.cp2 = { x: 350, y: 150 };
+    }
+    
+    // default styles
+    style1 = {
+      curve:  { width: 2, color: "green" },
+      cpline: { width: 1, color: "#ffffff" },
+      point1: { radius: 5, width: 1, color: "#ccc", fill: "rgba(255,255,255,0.5)", arc1: 0, arc2: 2 * Math.PI }
+    }
+
+    point = {
+      p1: { x:250, y:100 },
+      p2: { x:250, y:300 }
+    };
+
+    if (quadratic) {
+      point.cp1 = { x: userX, y: userY };
+    }
+    else {
+      point.cp1 = { x: 150, y: 150 };
+      point.cp2 = { x: 350, y: 150 };
+    }
+    
+    // default styles
+    style = {
+      curve:  { width: 2, color: "blue" },
+      cpline: { width: 1, color: "#ffffff" },
+      point: { radius: 5, width: 1, color: "#333", fill: "rgba(255,255,255,0.5)", arc1: 0, arc2: 2 * Math.PI }
+    }
+    
+    // line style defaults
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    
+    // event handlers
+    canvas.onmousedown = DragStart;
+    canvas.onmousemove = Dragging;
+    canvas.onmouseup = canvas.onmouseout = DragEnd;
+    DrawCanvas();
+  }
+  
+  
+  // draw canvas
+  function DrawCanvas() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // control lines
+    ctx.lineWidth = style1.cpline.width;
+    ctx.strokeStyle = style1.cpline.color;
+    ctx.beginPath();
+    ctx.moveTo(point1.p1.x, point1.p1.y);
+    ctx.lineTo(point1.cp1.x, point1.cp1.y);
+    if (point1.cp2) {
+      ctx.moveTo(point1.p2.x, point1.p2.y);
+      ctx.lineTo(point1.cp2.x, point1.cp2.y);
+    }
+    else {
+      ctx.lineTo(point1.p2.x, point1.p2.y);
+    }
+    ctx.stroke();
+    
+    // curve
+    ctx.lineWidth = style1.curve.width;
+    ctx.strokeStyle = style1.curve.color;
+    ctx.beginPath();
+    ctx.moveTo(point1.p1.x, point1.p1.y);
+    if (point1.cp2) {
+      ctx.bezierCurveTo(point1.cp1.x, point1.cp1.y, point1.cp2.x, point1.cp2.y, point1.p2.x, point1.p2.y);
+    }
+    else {
+      ctx.quadraticCurveTo(point1.cp1.x, point1.cp1.y, point1.p2.x, point1.p2.y);
+    }
+    ctx.stroke();
+
+    // control points    
+/*
+      ctx.lineWidth = style1.point1.width;
+      ctx.strokeStyle = style1.point1.color;
+      ctx.fillStyle = style1.point1.fill;
+      ctx.beginPath();
+      ctx.arc(point1.cp1.x, point1.cp1.y, style1.point1.radius, style1.point1.arc1, style1.point1.arc2, true);
+      ctx.fill();
+      ctx.stroke();
+
+*/
+
+    // control lines
+    ctx.lineWidth = style.cpline.width;
+    ctx.strokeStyle = style.cpline.color;
+    ctx.beginPath();
+    ctx.moveTo(point.p1.x, point.p1.y);
+    ctx.lineTo(point.cp1.x, point.cp1.y);
+    if (point.cp2) {
+      ctx.moveTo(point.p2.x, point.p2.y);
+      ctx.lineTo(point.cp2.x, point.cp2.y);
+    }
+    else {
+      ctx.lineTo(point.p2.x, point.p2.y);
+    }
+    ctx.stroke();
+    
+    // curve
+    ctx.lineWidth = style.curve.width;
+    ctx.strokeStyle = style.curve.color;
+    ctx.beginPath();
+    ctx.moveTo(point.p1.x, point.p1.y);
+    if (point.cp2) {
+      ctx.bezierCurveTo(point.cp1.x, point.cp1.y, point.cp2.x, point.cp2.y, point.p2.x, point.p2.y);
+    }
+    else {
+      ctx.quadraticCurveTo(point.cp1.x, point.cp1.y, point.p2.x, point.p2.y);
+    }
+    ctx.stroke();
+
+    // control points    
+/*
+      ctx.lineWidth = style.point.width;
+      ctx.strokeStyle = style.point.color;
+      ctx.fillStyle = style.point.fill;
+      ctx.beginPath();
+      ctx.arc(point.cp1.x, point.cp1.y, style.point.radius, style.point.arc1, style.point.arc2, true);
+      ctx.fill();
+      ctx.stroke();
+  */  
+
+    ShowCode();
+  }
+  
+  
+  // show canvas code
+  function ShowCode() {
+    if (code) {
+      code.firstChild.nodeValue = 
+        "canvas = document.getElementById(\"mycanvas\");\n"+
+        "ctx = canvas.getContext(\"2d\")\n"+
+        "ctx.lineWidth = " + style.curve.width +
+        ";\nctx.strokeStyle = \"" + style.curve.color +
+        "\";\nctx.beginPath();\n" +
+        "ctx.moveTo(" + point.p1.x + ", " + point.p1.y +");\n" +
+        (point.cp2 ? 
+          "ctx.bezierCurveTo("+point.cp1.x+", "+point.cp1.y+", "+point.cp2.x+", "+point.cp2.y+", "+point.p2.x+", "+point.p2.y+");" :
+          "ctx.quadraticCurveTo("+point.cp1.x+", "+point.cp1.y+", "+point.p2.x+", "+point.p2.y+");"
+        ) +
+        "\nctx.stroke();"
+      ;
+    }
+  }
+  
+  
+  // start dragging
+  function DragStart(e) {
+    e = MousePos(e);
+    var dx, dy;
+    for (var p in point) {
+      dx = point[p].x - e.x;
+      dy = point[p].y - e.y;
+      if ((dx * dx) + (dy * dy) < style.point.radius * style.point.radius) {
+        drag = p;
+        dPoint = e;
+        canvas.style.cursor = "move";
+        return;
+      }
+    }
+  }
+  
+  
+  // dragging
+  function Dragging(e) {
+    if (drag) {
+      e = MousePos(e);
+      point[drag].x += e.x - dPoint.x;
+      point[drag].y = point.cp1.y;
+      //point[drag].y += e.y - dPoint.y;
+      dPoint = e;
+      DrawCanvas();
+    }    
+  }
+  
+  
+  // end dragging
+  function DragEnd(e) {
+  	$("#nextbutton").show();
+    drag = null;
+    canvas.style.cursor = "default";
+    DrawCanvas();
+    var currentdate = new Date(); 
+	var datetime = "Last Sync: " + currentdate.getDate() + "/"
+		                + (currentdate.getMonth()+1)  + "/" 
+		                + currentdate.getFullYear() + " @ "  
+		                + currentdate.getHours() + ":"  
+		                + currentdate.getMinutes() + ":" 
+		                + currentdate.getSeconds() + ":" 
+		                + currentdate.getMilliseconds();
+	//250,100
+    //250,300
+    //console.log(point.cp1.x-250)
+    var AB = Math.sqrt(Math.pow(point.cp1.x-250,2)+ Math.pow(point.cp1.y-100,2));    
+    var BC = Math.sqrt(Math.pow(point.cp1.x-250,2)+ Math.pow(point.cp1.y-300,2)); 
+    var AC = Math.sqrt(Math.pow(250-250,2)+ Math.pow(300-100,2));
+    //console.log();
+    var radians = Math.acos((BC*BC+AB*AB-AC*AC)/(2*BC*AB));
+    var degrees = radians * (180/3.141592653589793);
+    //console.log(parseInt(180-degrees))
+    //console.log(point.cp1.x,point.cp1.y)
+
+    logs.push({"user":sessionUserId,"datetime":datetime,"question":"line_shape_1","value":"("+point.cp1.x+","+point.cp1.y+","+point.p2.x+","+point.p2.y+")","start_value":"false","end_value":"false"});
+  }
+
+  
+  // event parser
+  function MousePos(event) {
+    event = (event ? event : window.event);
+    return {
+      x: event.pageX - canvas.offsetLeft,
+      y: event.pageY - canvas.offsetTop
+    }
+  }
+  // start
+  canvas = document.getElementById("mycanvas");
+  code = document.getElementById("code");
+  if (canvas.getContext) {
+    ctx = canvas.getContext("2d");
+    Init(canvas.className == "quadratic");
+  }
+  
+})(); 
+
+}
+
+function drawQ10Ans(userEndValue){
+	$("#mycanvas").hide();
+	$("#sliderDiv").remove();
+	$("#sliderDiv1").remove();
+	$("#nextbutton").show();
+	$("#responsetext").html("<span style='color:green'>Expected response</span>&nbsp;&nbsp;&nbsp;&nbsp;<span style='color:blue'>Your response</span>");
+				$("#responsetext").show();
+	d3.selectAll("svg").remove();
+	
+	var svg = d3.select("#viz")
+		  .append("svg")
+		  .attr("width",900)
+		  .attr("height",300);
+
+
+	var t = textures.lines()
+		.orientation("2/8","6/8")
+	    .size(60)
+	    .strokeWidth(1);
+
+	svg.call(t);
+
+	svg.append("rect")
+		.attr("class","scrollableRect")
+		.attr("width",200)
+		.attr("height",200)
+		.attr("x",250)
+		.attr("y",50)
+	  	.style("fill", t.url())
+	  	.style("stroke","green"); 
+
+	var t1 = textures.lines()
+		.orientation("2/8","6/8")
+	    .size(userEndValue)
+	    .strokeWidth(1);
+
+	svg.call(t1);
+
+	svg.append("rect")
+		.attr("width",200)
+		.attr("height",200)
+		.attr("x",500)
+		.attr("y",50)
+	  	.style("fill", t1.url())
+	  	.style("stroke","blue");  
+}
+
+function drawQ11Ans(userEndValue){
+	$("#mycanvas").hide();
+	$("#sliderDiv").remove();
+	$("#sliderDiv1").remove();
+	$("#increaseButton").hide();
+	$("#decreaseButton").hide();
+	$("#nextbutton").show();
+	$("#responsetext").html("<span style='color:green'>Expected response</span>&nbsp;&nbsp;&nbsp;&nbsp;<span style='color:blue'>Your response</span>");
+				$("#responsetext").show();
+	d3.selectAll("svg").remove();
+	var x = document.body.offsetWidth/2
+	$('#viz').append("<div id=\"sliderDiv1\" align='center' style=\"width:10px;height:350px;margin-left: "+x+"px;margin-right: auto;position:absolute;\"></div>");
+	$('#viz').append("<div id=\"sliderDiv\" align='center' style=\"width:10px;height:350px;margin-left: "+x+"px;margin-right: auto;z-index:10;\"></div>");
+
+	d3.select('#sliderDiv1').call(d3.slider().value(25).orientation("vertical")).style("opacity",0.5);	
+	d3.select('#sliderDiv').call(d3.slider().value(userEndValue).orientation("vertical")).style("opacity",0.5);	
+
+	d3.select('#sliderDiv1').select("a").style("background","green");
+	d3.select('#sliderDiv').select("a").style("background","blue");
+}
+
+
+function drawQ12Ans(userEndValue){
+	//console.log("here")
+				$("#mycanvas").hide();
+				$("#sliderDiv").remove();
+				$("#sliderDiv1").remove();
+				$("#increaseButton").hide();
+				$("#decreaseButton").hide();
+				$("#nextbutton").show();
+				$("#responsetext").html("<span style='color:green'>Expected response</span>&nbsp;&nbsp;&nbsp;&nbsp;<span style='color:blue'>Your response</span>");
+				$("#responsetext").show();
+				d3.selectAll("svg").remove();
+				var svg, frameGroup, dragRect, dragBarTop, dragBarRight, rotateHandler,
+			    x = 200, y = 250,
+	    angle = 0,
+	    width = 200, height = 100,
+	    bar = 6,
+	    that = this;
+
+	svg = d3.select('#viz').append('svg').attr({
+	    width: 1000,
+	    height: 700
+	});
+	svg.append("rect")
+	       .attr("x",0)
+	       .attr("y",0)
+	       .attr("width",1000)
+	       .attr("height",700)
+	       .attr("fill","white")
+	       .style("stroke","black");
+
+
+	frameGroup = svg.append('g')
+	.attr({
+	    'class': 'dummy frameGroup'
+	});
+
+	targetRect = frameGroup.append('rect')
+	.attr('class', 'targetRect')
+	.attr('fill', 'black')
+	.style('fill-opacity', '0.4')
+	.attr("x",470)
+	.attr("y",50)
+	.attr("width",50)
+	.attr("height",5);
+
+			frameGroup.append('circle')
+					  .attr('class','dummy dragCircleRightStatic')				  
+					  .attr('r',8)
+					  .attr('cx',493)
+					  .attr('cy',155)
+					  .style('fill','green')
+					  .style('fill-opacity',0.2);
+
+		frameGroup.append('circle')
+				  .attr('class','dummy dragCircleRightStatic')				  
+				  .attr('r',8)
+				  .attr('cx',493)
+				  .attr('cy',userEndValue+53)
+				  .style('fill','blue')
+				  .style('fill-opacity',0.5);			
+}
+
+
+function sendLogs(){
+		if(skipSendLogs==1){
+			skipSendLogs=0;
+		}else{
+			//console.log(questionNumber)
+			if(questionNumber%2!=0){
+			var len = logs.length;
+			var goToNextEncoding = 0;
+			//console.log(logs[0]['value'])
+			//console.log(logs[len-1]['value'])
+			var questionName = logs[len-1]['question']
+			var questionEndValue = logs[len-1]['value']
+			if(questionName=="line_shape_1"){
+				//var val = questionEndValue.split(1,len-1);
+				questionEndValue = questionEndValue.replace("(","")
+				questionEndValue = questionEndValue.replace(")","")
+				var valArr = questionEndValue.split(",")
+				answers[questionName].push(parseInt(valArr[0]),parseInt(valArr[1]),parseInt(valArr[2]),parseInt(valArr[3]));	
+			}else{
+				answers[questionName] = parseInt(questionEndValue);
+			}	
+			//console.log(logs)
+			//console.log(logs[logs.length-1]["value"])
+				
+				userEndValue = logs[logs.length-1]["value"];
+				//console.log(userEndValue)
+			}
+			submitPressed = 1;		    
+		}
+	}
+</script>
+</html>
