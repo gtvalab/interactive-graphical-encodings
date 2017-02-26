@@ -3,6 +3,8 @@ User interfaces for data visualization often consist of two main components: con
 
 ## Graphical Encodings Evaluated
 ![header](https://cloud.githubusercontent.com/assets/4343770/23340330/6a614b16-fc02-11e6-8464-915796e3acdb.png)
+![full-1](https://cloud.githubusercontent.com/assets/4343770/23340342/8a6683a4-fc02-11e6-95d0-76683354f42b.png)
+![full-2](https://cloud.githubusercontent.com/assets/4343770/23340349/99e4b724-fc02-11e6-95cd-c048b0dd1794.png)
 
 ## Running the study
 After downloading/cloning the repository, navigate to the code folder. Open the trialQuestions.html file in a browser to go through the trial questions participants were given. On completeing the 12 trial questions, you will be navigated to actualquestionsset.html automatically. This file has the code used to generate randomly ordered sets of 84 questions for each session. The responses to these questions were used for our analysis.
