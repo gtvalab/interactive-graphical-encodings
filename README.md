@@ -1,6 +1,6 @@
 
 # Evaluating Interactive Graphical Encodings for Data Visualization
-This paper contians materials of an experiment that is conducted to study the effectiveness of graphical encodings when serving as the method for interaction.
+This repository contians materials of an experiment that is conducted to study the effectiveness of graphical encodings when serving as the method for interaction.
 
 
 # Repository's Map
